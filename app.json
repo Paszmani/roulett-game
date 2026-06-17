@@ -1,0 +1,49 @@
+{
+  "expo": {
+    "name": "Roleta Personalizável",
+    "slug": "roleta-personalizavel",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "roleta",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "assetBundlePatterns": ["**/*"],
+    "android": {
+      "package": "com.gruposb.roleta",
+      "adaptiveIcon": {
+        "backgroundColor": "#0F172A"
+      },
+      "edgeToEdgeEnabled": true
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static",
+      "favicon": "./public/favicon.png",
+      "name": "Roleta Personalizável",
+      "themeColor": "#6D28D9",
+      "backgroundColor": "#0F172A",
+      "display": "standalone",
+      "shortName": "Roleta"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-font",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "O app acessa suas fotos para você usar imagens nas opções da roleta."
+        }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#0F172A",
+          "resizeMode": "contain"
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
