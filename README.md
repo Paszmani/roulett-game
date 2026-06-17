@@ -74,6 +74,40 @@ npm run build:web
 ```
 Saída estática em `dist/`. Publique em qualquer host estático (Vercel, Netlify, GitHub Pages).
 
+## 🌐 Publicar no GitHub Pages
+
+> ⚠️ **Importante:** o app foi configurado para o repositório de nome **`roleta`**
+> (URL final `https://SEU_USUARIO.github.io/roleta/`). Se o seu repositório tiver
+> outro nome, troque o valor de `experiments.baseUrl` em [`app.json`](app.json)
+> para `"/NOME_DO_REPO"` antes de publicar.
+
+### Opção A — Deploy automático (GitHub Actions) — recomendado
+Já existe o workflow [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml):
+
+1. Crie o repositório no GitHub e suba o código:
+   ```bash
+   git init
+   git add .
+   git commit -m "Roleta personalizável"
+   git branch -M main
+   git remote add origin https://github.com/SEU_USUARIO/roleta.git
+   git push -u origin main
+   ```
+2. No GitHub: **Settings → Pages → Build and deployment → Source: GitHub Actions**.
+3. Pronto. A cada `push` na branch `main` o site é reconstruído e publicado em
+   `https://SEU_USUARIO.github.io/roleta/`. (Acompanhe em **Actions**.)
+
+### Opção B — Deploy manual (branch `gh-pages`)
+```bash
+npm run deploy
+```
+Isso roda o `predeploy` (export + `404.html`/`.nojekyll`) e envia a pasta `dist/`
+para a branch `gh-pages`. Depois, em **Settings → Pages → Source**, selecione a
+branch `gh-pages` (pasta `/root`).
+
+> O `404.html` e o `.nojekyll` são gerados automaticamente: garantem que recarregar
+> uma rota (ex.: `/roleta/settings`) funcione e que a pasta `_expo/` não seja ignorada.
+
 ## 📦 Build de APK/AAB (Android, via EAS)
 ```bash
 npm install -g eas-cli
