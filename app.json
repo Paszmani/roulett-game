@@ -17,7 +17,7 @@
     },
     "web": {
       "bundler": "metro",
-      "output": "static",
+      "output": "single",
       "favicon": "./public/favicon.png",
       "name": "Roleta Personalizável",
       "themeColor": "#6D28D9",
