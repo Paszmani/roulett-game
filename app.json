@@ -44,7 +44,7 @@
     ],
     "experiments": {
       "typedRoutes": true,
-      "baseUrl": "/roleta"
+      "baseUrl": "/roulett-game"
     }
   }
 }
