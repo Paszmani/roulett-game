@@ -155,7 +155,7 @@ export default function SettingsScreen() {
             busy={pickingKey === 'pointer'}
             shape="square"
             onPick={() =>
-              handlePick('pointer', { square: true, maxSize: 256, format: 'png' }, (uri) =>
+              handlePick('pointer', { square: true, maxSize: 512, format: 'png' }, (uri) =>
                 patch({ pointerType: 'image', pointerImage: uri }),
               )
             }
@@ -172,7 +172,7 @@ export default function SettingsScreen() {
             busy={pickingKey === 'logo'}
             shape="wide"
             onPick={() =>
-              handlePick('logo', { square: false, maxSize: 600 }, (uri) => patch({ logo: uri }))
+              handlePick('logo', { square: false, maxSize: 1080 }, (uri) => patch({ logo: uri }))
             }
             onRemove={() => patch({ logo: undefined })}
           />
@@ -218,7 +218,7 @@ export default function SettingsScreen() {
             busy={pickingKey === 'background'}
             shape="wide"
             onPick={() =>
-              handlePick('background', { square: false, maxSize: 1280, format: 'jpeg' }, (uri) =>
+              handlePick('background', { square: false, maxSize: 1920, format: 'jpeg', quality: 0.9 }, (uri) =>
                 patch({ backgroundImage: uri }),
               )
             }
@@ -304,7 +304,7 @@ export default function SettingsScreen() {
                 onChangeColor={(color) => updateSegment(s.id, { color })}
                 onOpenPicker={() => setPickerTarget({ kind: 'segment', id: s.id })}
                 onPickImage={() =>
-                  handlePick(`seg-${s.id}`, { square: true, maxSize: 600 }, (uri) =>
+                  handlePick(`seg-${s.id}`, { square: true, maxSize: 1080 }, (uri) =>
                     updateSegment(s.id, { image: uri }),
                   )
                 }

@@ -86,7 +86,9 @@ export const Wheel = forwardRef<WheelHandle, WheelProps>(function Wheel(
   const count = segments.length;
   const cx = size / 2;
   const cy = size / 2;
-  const radius = size / 2;
+  // Aro cinza liso ocupa a borda externa; as fatias ficam logo dentro dele.
+  const ringWidth = Math.max(8, size * 0.045);
+  const radius = size / 2 - ringWidth - 2;
   const seg = 360 / count;
 
   const animatedProps = useAnimatedStyle(() => ({
@@ -175,12 +177,17 @@ export const Wheel = forwardRef<WheelHandle, WheelProps>(function Wheel(
           );
         })}
 
-        {/* Cubo central */}
-        <Circle cx={cx} cy={cy} r={radius * 0.12} fill="#0F172A" />
-        <Circle cx={cx} cy={cy} r={radius * 0.08} fill={pointerColor} />
+        {/* Aro cinza liso (sem sombra/brilho) */}
+        <Circle cx={cx} cy={cy} r={radius + ringWidth / 2} fill="none" stroke="#9CA3AF" strokeWidth={ringWidth} />
+        <Circle cx={cx} cy={cy} r={radius + ringWidth} fill="none" stroke="#6B7280" strokeWidth={1.2} />
+        <Circle cx={cx} cy={cy} r={radius} fill="none" stroke="#6B7280" strokeWidth={1.2} />
+
+        {/* Eixo central (menor e cinza) */}
+        <Circle cx={cx} cy={cy} r={radius * 0.09} fill="#475569" />
+        <Circle cx={cx} cy={cy} r={radius * 0.062} fill="#CBD5E1" />
       </Svg>
     );
-  }, [segments, size, fontFamily, verticalText, pointerColor, cx, cy, radius, seg, count]);
+  }, [segments, size, fontFamily, verticalText, cx, cy, radius, ringWidth, seg, count]);
 
   // Giro por toque/arraste (mesmo gesto no toque e no mouse/web).
   const handleSettle = useCallback(
