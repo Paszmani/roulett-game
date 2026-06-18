@@ -28,6 +28,22 @@ export default function Root({ children }: PropsWithChildren) {
         {/* Evita scroll-bounce indesejado no body em telas com ScrollView */}
         <ScrollViewStyleReset />
         <style dangerouslySetInnerHTML={{ __html: bodyStyle }} />
+
+        {/* Registra o Service Worker (offline/PWA) — apenas no build de produção. */}
+        {process.env.NODE_ENV === 'production' ? (
+          <script
+            dangerouslySetInnerHTML={{
+              __html: `
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function () {
+    navigator.serviceWorker.register('${baseUrl}/sw.js').catch(function (e) {
+      console.warn('Falha ao registrar o Service Worker:', e);
+    });
+  });
+}`.trim(),
+            }}
+          />
+        ) : null}
       </head>
       <body>{children}</body>
     </html>

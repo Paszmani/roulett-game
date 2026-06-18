@@ -6,8 +6,9 @@
     "start": "expo start",
     "android": "expo run:android",
     "web": "expo start --web",
-    "build:web": "expo export -p web",
-    "predeploy": "expo export -p web && node ./scripts/spa-fallback.js",
+    "build:web": "expo export -p web && node ./scripts/spa-fallback.js && workbox generateSW workbox-config.js",
+    "sw": "workbox generateSW workbox-config.js",
+    "predeploy": "expo export -p web && node ./scripts/spa-fallback.js && workbox generateSW workbox-config.js",
     "deploy": "gh-pages --nojekyll -d dist",
     "lint": "expo lint"
   },
@@ -43,7 +44,8 @@
   "devDependencies": {
     "@types/react": "~19.1.0",
     "gh-pages": "^6.3.0",
-    "typescript": "~5.9.2"
+    "typescript": "~5.9.2",
+    "workbox-cli": "^7.4.1"
   },
   "private": true
 }

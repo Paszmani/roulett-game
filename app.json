@@ -7,13 +7,18 @@
     "scheme": "roleta",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "android": {
       "package": "com.gruposb.roleta",
       "adaptiveIcon": {
         "backgroundColor": "#0F172A"
       },
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "permissions": [
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "web": {
       "bundler": "metro",
@@ -45,6 +50,12 @@
     "experiments": {
       "typedRoutes": true,
       "baseUrl": "/roulett-game"
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "be1c853a-a780-4158-a399-7f30ec82664d"
+      }
     }
   }
 }

@@ -37,6 +37,9 @@ jobs:
       - name: SPA fallback (404.html + .nojekyll)
         run: node ./scripts/spa-fallback.js
 
+      - name: Gerar Service Worker (Workbox)
+        run: npx workbox generateSW workbox-config.js
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
