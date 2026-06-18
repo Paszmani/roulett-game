@@ -26,6 +26,8 @@ export interface RouletteConfig {
   fontFamily: FontKey;
   /** Duração da animação de giro, em milissegundos. */
   spinDurationMs: number;
+  /** Escala do tamanho da roleta (fração do espaço disponível, ex.: 0.6–1.0). */
+  wheelScale: number;
   hapticsEnabled: boolean;
   theme: ThemeMode;
   /** Orientação dos rótulos: vertical (radial) quando true. */

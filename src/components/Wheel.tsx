@@ -1,12 +1,15 @@
-import { forwardRef, useImperativeHandle, useMemo } from 'react';
+import { forwardRef, useCallback, useImperativeHandle, useMemo } from 'react';
 import { Image, StyleSheet, Text, View } from 'react-native';
 import Animated, {
   Easing,
+  cancelAnimation,
   runOnJS,
   useAnimatedStyle,
   useSharedValue,
+  withDecay,
   withTiming,
 } from 'react-native-reanimated';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Svg, {
   G,
   Path,
@@ -19,7 +22,17 @@ import Svg, {
 import type { PointerType, Segment } from '@/types';
 import { arcPath, polarToCartesian, segmentMidAngle, wedgeBBox } from '@/utils/geometry';
 import { readableTextColor } from '@/utils/colors';
-import { computeSpin } from '@/domain/roulette';
+import { computeSpin, winnerFromRotation } from '@/domain/roulette';
+
+// ── Ajustes do giro por toque/arraste ───────────────────────────────────────
+// A roleta segue o dedo (ângulo do toque em relação ao centro). Ao soltar,
+// a velocidade angular do gesto vira inércia (withDecay).
+const VELOCITY_BOOST = 1.15; // intensidade do impulso ao soltar (↑ = gira mais forte)
+const DECELERATION = 0.998; // tempo do giro: mais perto de 1 = gira por mais tempo
+const MIN_FLICK_DEG_PER_S = 90; // abaixo disso é só um ajuste, não conta como giro
+const MAX_FLICK_DEG_PER_S = 2600; // teto para não girar absurdamente rápido
+const MIN_TOUCH_RADIUS_SQ = 100; // ignora toques muito próximos do centro (instável)
+// ─────────────────────────────────────────────────────────────────────────────
 
 export interface WheelHandle {
   /** Inicia o giro. Resolve com o índice vencedor ao terminar. */
@@ -69,6 +82,7 @@ export const Wheel = forwardRef<WheelHandle, WheelProps>(function Wheel(
   ref,
 ) {
   const rotation = useSharedValue(0);
+  const prevAngle = useSharedValue(0); // ângulo do toque anterior (rad), p/ seguir o dedo
   const count = segments.length;
   const cx = size / 2;
   const cy = size / 2;
@@ -168,6 +182,60 @@ export const Wheel = forwardRef<WheelHandle, WheelProps>(function Wheel(
     );
   }, [segments, size, fontFamily, verticalText, pointerColor, cx, cy, radius, seg, count]);
 
+  // Giro por toque/arraste (mesmo gesto no toque e no mouse/web).
+  const handleSettle = useCallback(
+    (finalRotation: number) => {
+      onSpinEnd(winnerFromRotation(finalRotation, count));
+    },
+    [onSpinEnd, count],
+  );
+
+  const panGesture = useMemo(
+    () =>
+      Gesture.Pan()
+        .enabled(!isSpinning && count >= 2)
+        .onBegin((e) => {
+          'worklet';
+          cancelAnimation(rotation);
+          // Coordenadas relativas ao centro (camada que NÃO gira → sentido estável).
+          prevAngle.value = Math.atan2(e.y - cy, e.x - cx);
+        })
+        .onUpdate((e) => {
+          'worklet';
+          const a = Math.atan2(e.y - cy, e.x - cx);
+          let delta = a - prevAngle.value;
+          // Normaliza p/ [-π, π] (evita salto ao cruzar ±180°).
+          if (delta > Math.PI) delta -= 2 * Math.PI;
+          else if (delta < -Math.PI) delta += 2 * Math.PI;
+          rotation.value += (delta * 180) / Math.PI; // a roleta segue o dedo
+          prevAngle.value = a;
+        })
+        .onFinalize((e) => {
+          'worklet';
+          const rx = e.x - cx;
+          const ry = e.y - cy;
+          const r2 = rx * rx + ry * ry;
+          // Velocidade angular (deg/s) a partir da velocidade linear do gesto.
+          let angVel =
+            r2 > MIN_TOUCH_RADIUS_SQ
+              ? ((rx * e.velocityY - ry * e.velocityX) / r2) * (180 / Math.PI)
+              : 0;
+          angVel *= VELOCITY_BOOST;
+          if (Math.abs(angVel) < MIN_FLICK_DEG_PER_S) return; // foi só um ajuste, não giro
+          angVel = Math.max(-MAX_FLICK_DEG_PER_S, Math.min(MAX_FLICK_DEG_PER_S, angVel));
+          runOnJS(onSpinStart)();
+          rotation.value = withDecay({ velocity: angVel, deceleration: DECELERATION }, (finished) => {
+            if (finished) {
+              const final = rotation.value;
+              // Normaliza p/ não crescer indefinidamente (mantém o ângulo visual).
+              rotation.value = ((final % 360) + 360) % 360;
+              runOnJS(handleSettle)(final);
+            }
+          });
+        }),
+    [isSpinning, count, onSpinStart, handleSettle, rotation, prevAngle, cx, cy],
+  );
+
   // Ponteiro: imagem, emoji ou seta padrão.
   const ptSize = Math.max(30, size * 0.12);
   const useImage = pointerType === 'image' && !!pointerImage;
@@ -175,26 +243,28 @@ export const Wheel = forwardRef<WheelHandle, WheelProps>(function Wheel(
   const isCustom = useImage || useEmoji;
 
   return (
-    <View style={{ width: size, height: size }}>
-      {/* Ponteiro fixo no topo (não gira) */}
-      <View style={[styles.pointer, { top: isCustom ? -ptSize * 0.55 : -2 }]} pointerEvents="none">
-        {useImage ? (
-          <Image
-            source={{ uri: pointerImage }}
-            style={{ width: ptSize, height: ptSize }}
-            resizeMode="contain"
-          />
-        ) : useEmoji ? (
-          <Text style={{ fontSize: ptSize, lineHeight: ptSize * 1.1 }}>{pointerEmoji}</Text>
-        ) : (
-          <Svg width={36} height={28} viewBox="0 0 36 28">
-            <Path d="M18 28 L2 2 L34 2 Z" fill={pointerColor} />
-          </Svg>
-        )}
-      </View>
+    <GestureDetector gesture={panGesture}>
+      <View style={{ width: size, height: size }}>
+        {/* Ponteiro fixo no topo (não gira) */}
+        <View style={[styles.pointer, { top: isCustom ? -ptSize * 0.55 : -2 }]} pointerEvents="none">
+          {useImage ? (
+            <Image
+              source={{ uri: pointerImage }}
+              style={{ width: ptSize, height: ptSize }}
+              resizeMode="contain"
+            />
+          ) : useEmoji ? (
+            <Text style={{ fontSize: ptSize, lineHeight: ptSize * 1.1 }}>{pointerEmoji}</Text>
+          ) : (
+            <Svg width={36} height={28} viewBox="0 0 36 28">
+              <Path d="M18 28 L2 2 L34 2 Z" fill={pointerColor} />
+            </Svg>
+          )}
+        </View>
 
-      <Animated.View style={animatedProps}>{wheelContent}</Animated.View>
-    </View>
+        <Animated.View style={animatedProps}>{wheelContent}</Animated.View>
+      </View>
+    </GestureDetector>
   );
 });
 

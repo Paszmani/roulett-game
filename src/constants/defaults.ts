@@ -19,6 +19,7 @@ export const DEFAULT_CONFIG: RouletteConfig = {
   segments: DEFAULT_SEGMENTS,
   fontFamily: 'Poppins',
   spinDurationMs: 4500,
+  wheelScale: 1,
   hapticsEnabled: true,
   theme: 'dark',
   verticalText: false,
@@ -34,4 +35,7 @@ export const LIMITS = {
   minSpinMs: 2000,
   maxSpinMs: 8000,
   spinStepMs: 500,
+  minWheelScale: 0.6,
+  maxWheelScale: 1,
+  wheelScaleStep: 0.1,
 };

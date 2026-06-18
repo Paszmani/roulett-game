@@ -5,10 +5,13 @@ import { useRouter } from 'expo-router';
 import { useRoulette } from '@/contexts/RouletteContext';
 import { SegmentEditor } from '@/components/SegmentEditor';
 import { ImageField } from '@/components/ImageField';
-import { BACKGROUND_PALETTE, FONT_FAMILIES, FONT_OPTIONS, POINTER_EMOJIS } from '@/constants/theme';
+import { ColorPickerModal } from '@/components/ColorPickerModal';
+import { BACKGROUND_PALETTE, FONT_FAMILIES, FONT_OPTIONS, POINTER_EMOJIS, SEGMENT_PALETTE } from '@/constants/theme';
 import { LIMITS } from '@/constants/defaults';
 import { pickImage, type PickImageOptions } from '@/utils/imagePicker';
 import type { FontKey } from '@/types';
+
+type PickerTarget = { kind: 'segment'; id: string } | { kind: 'background' };
 
 function notify(title: string, msg: string) {
   if (Platform.OS === 'web') window.alert(msg);
@@ -21,6 +24,26 @@ export default function SettingsScreen() {
   const fontFamily = FONT_FAMILIES[config.fontFamily];
   // Chave do item cuja imagem está sendo selecionada: `seg-<id>`, `logo` ou `background`.
   const [pickingKey, setPickingKey] = useState<string | null>(null);
+  // Alvo do seletor de cor (modal): uma fatia ou o plano de fundo.
+  const [pickerTarget, setPickerTarget] = useState<PickerTarget | null>(null);
+
+  const pickerColor =
+    pickerTarget?.kind === 'segment'
+      ? config.segments.find((s) => s.id === pickerTarget.id)?.color ?? '#FFFFFF'
+      : config.backgroundColor ?? palette.background;
+
+  function applyPickerColor(hex: string) {
+    if (pickerTarget?.kind === 'segment') updateSegment(pickerTarget.id, { color: hex });
+    else if (pickerTarget?.kind === 'background') patch({ backgroundColor: hex });
+  }
+
+  function adjustWheelScale(delta: number) {
+    const next = Math.min(
+      LIMITS.maxWheelScale,
+      Math.max(LIMITS.minWheelScale, Math.round((config.wheelScale + delta) * 100) / 100),
+    );
+    patch({ wheelScale: next });
+  }
 
   async function handlePick(
     key: string,
@@ -179,6 +202,13 @@ export default function SettingsScreen() {
                 ]}
               />
             ))}
+            {/* Cor personalizada (abre o seletor) */}
+            <Pressable
+              onPress={() => setPickerTarget({ kind: 'background' })}
+              style={[styles.bgChip, { backgroundColor: palette.surface, borderColor: palette.border }]}
+            >
+              <Text style={{ color: palette.text, fontSize: 13, fontFamily }}>🎨 Cor</Text>
+            </Pressable>
           </View>
 
           <ImageField
@@ -239,6 +269,21 @@ export default function SettingsScreen() {
           </View>
         </Section>
 
+        {/* Tamanho da roleta */}
+        <Section title="Tamanho da roleta" palette={palette} fontFamily={fontFamily}>
+          <View style={[styles.stepper, { backgroundColor: palette.surface, borderColor: palette.border }]}>
+            <Pressable onPress={() => adjustWheelScale(-LIMITS.wheelScaleStep)} style={styles.stepBtn}>
+              <Text style={[styles.stepBtnText, { color: palette.text }]}>−</Text>
+            </Pressable>
+            <Text style={[styles.stepValue, { color: palette.text, fontFamily }]}>
+              {Math.round(config.wheelScale * 100)}%
+            </Text>
+            <Pressable onPress={() => adjustWheelScale(LIMITS.wheelScaleStep)} style={styles.stepBtn}>
+              <Text style={[styles.stepBtnText, { color: palette.text }]}>+</Text>
+            </Pressable>
+          </View>
+        </Section>
+
         {/* Setores */}
         <Section
           title={`Opções (${config.segments.length})`}
@@ -257,6 +302,7 @@ export default function SettingsScreen() {
                 busy={pickingKey === `seg-${s.id}`}
                 onChangeLabel={(label) => updateSegment(s.id, { label })}
                 onChangeColor={(color) => updateSegment(s.id, { color })}
+                onOpenPicker={() => setPickerTarget({ kind: 'segment', id: s.id })}
                 onPickImage={() =>
                   handlePick(`seg-${s.id}`, { square: true, maxSize: 600 }, (uri) =>
                     updateSegment(s.id, { image: uri }),
@@ -279,6 +325,16 @@ export default function SettingsScreen() {
           </Pressable>
         </Section>
       </ScrollView>
+
+      <ColorPickerModal
+        visible={pickerTarget !== null}
+        color={pickerColor}
+        palette={palette}
+        fontFamily={fontFamily}
+        swatches={pickerTarget?.kind === 'background' ? BACKGROUND_PALETTE : SEGMENT_PALETTE}
+        onChange={applyPickerColor}
+        onClose={() => setPickerTarget(null)}
+      />
     </SafeAreaView>
   );
 }

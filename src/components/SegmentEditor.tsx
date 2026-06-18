@@ -12,6 +12,7 @@ interface SegmentEditorProps {
   busy: boolean;
   onChangeLabel: (label: string) => void;
   onChangeColor: (color: string) => void;
+  onOpenPicker: () => void;
   onPickImage: () => void;
   onRemoveImage: () => void;
   onRemove: () => void;
@@ -26,6 +27,7 @@ export function SegmentEditor({
   busy,
   onChangeLabel,
   onChangeColor,
+  onOpenPicker,
   onPickImage,
   onRemoveImage,
   onRemove,
@@ -33,7 +35,10 @@ export function SegmentEditor({
   return (
     <View style={[styles.row, { backgroundColor: palette.surface, borderColor: palette.border }]}>
       <View style={styles.header}>
-        <View style={[styles.swatch, { backgroundColor: segment.color }]} />
+        <Pressable
+          onPress={onOpenPicker}
+          style={[styles.swatch, { backgroundColor: segment.color, borderColor: palette.border }]}
+        />
         <TextInput
           value={segment.label}
           onChangeText={onChangeLabel}
@@ -107,7 +112,7 @@ export function SegmentEditor({
 const styles = StyleSheet.create({
   row: { borderRadius: 16, borderWidth: 1, padding: 12, gap: 12 },
   header: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  swatch: { width: 20, height: 20, borderRadius: 6 },
+  swatch: { width: 26, height: 26, borderRadius: 8, borderWidth: 1 },
   input: { flex: 1, fontSize: 16, paddingVertical: 4 },
   remove: { width: 28, height: 28, alignItems: 'center', justifyContent: 'center' },
   removeText: { fontSize: 16 },
