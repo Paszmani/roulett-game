@@ -33,11 +33,11 @@ export function SegmentEditor({
   onRemove,
 }: SegmentEditorProps) {
   return (
-    <View style={[styles.row, { backgroundColor: palette.surface, borderColor: palette.border }]}>
+    <View style={[styles.row, { backgroundColor: palette.surface, borderColor: palette.border, borderRadius: palette.radius.card }]}>
       <View style={styles.header}>
         <Pressable
           onPress={onOpenPicker}
-          style={[styles.swatch, { backgroundColor: segment.color, borderColor: palette.border }]}
+          style={[styles.swatch, { backgroundColor: segment.color, borderColor: palette.border, borderRadius: palette.radius.small }]}
         />
         <TextInput
           value={segment.label}
@@ -88,7 +88,7 @@ export function SegmentEditor({
         <Pressable
           onPress={onPickImage}
           disabled={busy}
-          style={[styles.imageBtn, { backgroundColor: palette.surfaceAlt, borderColor: palette.border }]}
+          style={[styles.imageBtn, { backgroundColor: palette.surfaceAlt, borderColor: palette.border, borderRadius: palette.radius.control }]}
         >
           {busy ? (
             <ActivityIndicator size="small" color={palette.text} />

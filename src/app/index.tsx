@@ -1,24 +1,34 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Image, Platform, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { useRoulette } from '@/contexts/RouletteContext';
 import { Wheel, type WheelHandle } from '@/components/Wheel';
-import { ResultModal } from '@/components/ResultModal';
+import { WinAnimation } from '@/components/WinAnimation';
 import { FONT_FAMILIES } from '@/constants/theme';
+import { readableTextColor } from '@/utils/colors';
+
+const CELEBRATION_MS = 3500;
 
 export default function HomeScreen() {
   const { config, palette } = useRoulette();
   const { width, height } = useWindowDimensions();
   const router = useRouter();
   const wheelRef = useRef<WheelHandle>(null);
+  const celebrateTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [isSpinning, setIsSpinning] = useState(false);
   const [winnerIndex, setWinnerIndex] = useState<number | null>(null);
-  const [resultOpen, setResultOpen] = useState(false);
+  const [celebrateId, setCelebrateId] = useState(0);
+  const [celebrating, setCelebrating] = useState(false);
+
+  useEffect(() => () => {
+    if (celebrateTimer.current) clearTimeout(celebrateTimer.current);
+  }, []);
 
   const fontFamily = FONT_FAMILIES[config.fontFamily];
+  const winner = winnerIndex != null ? config.segments[winnerIndex] : null;
 
   // Altura responsiva da logo (limitada para não competir com a roleta).
   const logoHeight = Math.min(Math.max(height * 0.12, 64), 130);
@@ -56,11 +66,20 @@ export default function HomeScreen() {
           </Text>
           <Pressable
             onPress={() => router.push('/settings')}
-            style={[styles.iconBtn, { backgroundColor: palette.surface, borderColor: palette.border }]}
+            style={[styles.iconBtn, { backgroundColor: palette.surface, borderColor: palette.border, borderRadius: palette.radius.control }]}
           >
             <Text style={[styles.iconText, { color: palette.text }]}>⚙︎</Text>
           </Pressable>
         </View>
+
+        {/* Pílula com o último resultado */}
+        {winner ? (
+          <View style={[styles.pill, { backgroundColor: winner.color, borderRadius: palette.radius.card }]}>
+            <Text style={[styles.pillText, { color: readableTextColor(winner.color), fontFamily }]} numberOfLines={1}>
+              {winner.label || '—'}
+            </Text>
+          </View>
+        ) : null}
 
         {/* Logo entre o título e a roleta */}
         {config.logo ? (
@@ -79,6 +98,7 @@ export default function HomeScreen() {
             fontFamily={fontFamily}
             durationMs={config.spinDurationMs}
             pointerColor={palette.pointer}
+            backgroundColor={backgroundColor}
             isSpinning={isSpinning}
             verticalText={config.verticalText}
             pointerType={config.pointerType}
@@ -86,13 +106,16 @@ export default function HomeScreen() {
             pointerImage={config.pointerImage}
             onSpinStart={() => {
               setIsSpinning(true);
-              setResultOpen(false);
+              setCelebrating(false);
             }}
             onSpinEnd={(idx) => {
               setIsSpinning(false);
               setWinnerIndex(idx);
-              setResultOpen(true);
+              setCelebrateId((id) => id + 1);
+              setCelebrating(true);
               triggerHaptic();
+              if (celebrateTimer.current) clearTimeout(celebrateTimer.current);
+              celebrateTimer.current = setTimeout(() => setCelebrating(false), CELEBRATION_MS);
             }}
           />
         </View>
@@ -102,7 +125,7 @@ export default function HomeScreen() {
           disabled={isSpinning}
           style={[
             styles.spinButton,
-            { backgroundColor: palette.primary, opacity: isSpinning ? 0.6 : 1 },
+            { backgroundColor: palette.primary, opacity: isSpinning ? 0.6 : 1, borderRadius: palette.radius.card },
           ]}
         >
           <Text style={[styles.spinText, { color: palette.primaryText, fontFamily }]}>
@@ -111,14 +134,14 @@ export default function HomeScreen() {
         </Pressable>
       </View>
 
-      <ResultModal
-        visible={resultOpen}
-        segment={winnerIndex != null ? config.segments[winnerIndex] ?? null : null}
-        palette={palette}
-        fontFamily={fontFamily}
-        onClose={() => setResultOpen(false)}
-      />
       </SafeAreaView>
+
+      {/* Overlay da animação de vitória (cobre a tela toda) */}
+      {celebrating ? (
+        <View style={styles.celebration} pointerEvents="none">
+          <WinAnimation key={celebrateId} type={config.winAnimation} active />
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -130,10 +153,13 @@ const styles = StyleSheet.create({
   container: { flex: 1, paddingHorizontal: 24, paddingVertical: 16, alignItems: 'center', justifyContent: 'space-between', gap: 16, width: '100%', maxWidth: 640, alignSelf: 'center' },
   topBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', width: '100%' },
   title: { fontSize: 26, flex: 1, textAlign: 'center' },
+  pill: { paddingHorizontal: 22, paddingVertical: 8, maxWidth: '90%' },
+  pillText: { fontSize: 17, fontWeight: '600' },
   logo: { width: '100%', maxWidth: 320, alignSelf: 'center' },
   iconBtn: { width: 44, height: 44, borderRadius: 12, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   iconText: { fontSize: 20 },
   wheelArea: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   spinButton: { width: '100%', maxWidth: 320, paddingVertical: 18, borderRadius: 18, alignItems: 'center' },
   spinText: { fontSize: 20, letterSpacing: 2 },
+  celebration: { ...StyleSheet.absoluteFillObject, zIndex: 50 },
 });

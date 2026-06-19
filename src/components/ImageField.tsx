@@ -36,7 +36,7 @@ export function ImageField({
         <Pressable
           onPress={onPick}
           disabled={busy}
-          style={[styles.btn, { backgroundColor: palette.surfaceAlt, borderColor: palette.border }]}
+          style={[styles.btn, { backgroundColor: palette.surfaceAlt, borderColor: palette.border, borderRadius: palette.radius.control }]}
         >
           {busy ? (
             <ActivityIndicator size="small" color={palette.text} />

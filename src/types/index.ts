@@ -9,6 +9,9 @@ export type FontKey = 'Poppins' | 'Inter' | 'Nunito' | 'Montserrat';
 /** Tipo de ponteiro (seta) que aponta o prêmio. */
 export type PointerType = 'shape' | 'emoji' | 'image';
 
+/** Animação exibida ao vencer. */
+export type WinAnimationType = 'confetti' | 'fireworks' | 'stars' | 'coins' | 'hearts' | 'fire';
+
 /** Um setor (fatia) da roleta. */
 export interface Segment {
   id: string;
@@ -30,6 +33,14 @@ export interface RouletteConfig {
   wheelScale: number;
   hapticsEnabled: boolean;
   theme: ThemeMode;
+  /** Cor global do texto (sobrepõe a do tema). */
+  textColor?: string;
+  /** Cor global dos botões (sobrepõe a primária do tema). */
+  buttonColor?: string;
+  /** Arredondamento global dos cantos (px base). */
+  cornerRadius: number;
+  /** Animação ao vencer (padrão: confete). */
+  winAnimation: WinAnimationType;
   /** Orientação dos rótulos: vertical (radial) quando true. */
   verticalText: boolean;
   /** Aparência do ponteiro. */

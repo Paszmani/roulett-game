@@ -6,12 +6,33 @@ import { useRoulette } from '@/contexts/RouletteContext';
 import { SegmentEditor } from '@/components/SegmentEditor';
 import { ImageField } from '@/components/ImageField';
 import { ColorPickerModal } from '@/components/ColorPickerModal';
-import { BACKGROUND_PALETTE, FONT_FAMILIES, FONT_OPTIONS, POINTER_EMOJIS, SEGMENT_PALETTE } from '@/constants/theme';
+import {
+  BACKGROUND_PALETTE,
+  BUTTON_COLOR_SWATCHES,
+  FONT_FAMILIES,
+  FONT_OPTIONS,
+  POINTER_EMOJIS,
+  SEGMENT_PALETTE,
+  TEXT_COLOR_SWATCHES,
+} from '@/constants/theme';
 import { LIMITS } from '@/constants/defaults';
 import { pickImage, type PickImageOptions } from '@/utils/imagePicker';
-import type { FontKey } from '@/types';
+import type { FontKey, WinAnimationType } from '@/types';
 
-type PickerTarget = { kind: 'segment'; id: string } | { kind: 'background' };
+const WIN_ANIMATIONS: { key: WinAnimationType; label: string }[] = [
+  { key: 'confetti', label: 'Confete' },
+  { key: 'fireworks', label: 'Fogos' },
+  { key: 'stars', label: 'Estrelas' },
+  { key: 'coins', label: 'Moedas' },
+  { key: 'hearts', label: 'Corações' },
+  { key: 'fire', label: 'Fogo' },
+];
+
+type PickerTarget =
+  | { kind: 'segment'; id: string }
+  | { kind: 'background' }
+  | { kind: 'text' }
+  | { kind: 'button' };
 
 function notify(title: string, msg: string) {
   if (Platform.OS === 'web') window.alert(msg);
@@ -27,14 +48,27 @@ export default function SettingsScreen() {
   // Alvo do seletor de cor (modal): uma fatia ou o plano de fundo.
   const [pickerTarget, setPickerTarget] = useState<PickerTarget | null>(null);
 
-  const pickerColor =
-    pickerTarget?.kind === 'segment'
-      ? config.segments.find((s) => s.id === pickerTarget.id)?.color ?? '#FFFFFF'
-      : config.backgroundColor ?? palette.background;
+  let pickerColor = '#FFFFFF';
+  if (pickerTarget?.kind === 'segment')
+    pickerColor = config.segments.find((s) => s.id === pickerTarget.id)?.color ?? '#FFFFFF';
+  else if (pickerTarget?.kind === 'background') pickerColor = config.backgroundColor ?? palette.background;
+  else if (pickerTarget?.kind === 'text') pickerColor = palette.text;
+  else if (pickerTarget?.kind === 'button') pickerColor = palette.primary;
+
+  const pickerSwatches =
+    pickerTarget?.kind === 'background'
+      ? BACKGROUND_PALETTE
+      : pickerTarget?.kind === 'text'
+        ? TEXT_COLOR_SWATCHES
+        : pickerTarget?.kind === 'button'
+          ? BUTTON_COLOR_SWATCHES
+          : SEGMENT_PALETTE;
 
   function applyPickerColor(hex: string) {
     if (pickerTarget?.kind === 'segment') updateSegment(pickerTarget.id, { color: hex });
     else if (pickerTarget?.kind === 'background') patch({ backgroundColor: hex });
+    else if (pickerTarget?.kind === 'text') patch({ textColor: hex });
+    else if (pickerTarget?.kind === 'button') patch({ buttonColor: hex });
   }
 
   function adjustWheelScale(delta: number) {
@@ -43,6 +77,14 @@ export default function SettingsScreen() {
       Math.max(LIMITS.minWheelScale, Math.round((config.wheelScale + delta) * 100) / 100),
     );
     patch({ wheelScale: next });
+  }
+
+  function adjustCorner(delta: number) {
+    const next = Math.min(
+      LIMITS.maxCornerRadius,
+      Math.max(LIMITS.minCornerRadius, config.cornerRadius + delta),
+    );
+    patch({ cornerRadius: next });
   }
 
   async function handlePick(
@@ -77,7 +119,7 @@ export default function SettingsScreen() {
     <SafeAreaView style={[styles.safe, { backgroundColor: palette.background }]} edges={['top', 'bottom']}>
       <View style={[styles.header, { borderBottomColor: palette.border }]}>
         <Text style={[styles.headerTitle, { color: palette.text, fontFamily }]}>Personalizar</Text>
-        <Pressable onPress={() => router.back()} style={[styles.doneBtn, { backgroundColor: palette.primary }]}>
+        <Pressable onPress={() => router.back()} style={[styles.doneBtn, { backgroundColor: palette.primary, borderRadius: palette.radius.control }]}>
           <Text style={[styles.doneText, { color: palette.primaryText, fontFamily }]}>Concluir</Text>
         </Pressable>
       </View>
@@ -90,24 +132,76 @@ export default function SettingsScreen() {
             onChangeText={(t) => patch({ title: t })}
             placeholder="Nome da roleta"
             placeholderTextColor={palette.textMuted}
-            style={[styles.titleInput, { color: palette.text, backgroundColor: palette.surface, borderColor: palette.border, fontFamily }]}
+            style={[styles.titleInput, { color: palette.text, backgroundColor: palette.surface, borderColor: palette.border, borderRadius: palette.radius.control, fontFamily }]}
             maxLength={28}
           />
         </Section>
 
         {/* Tema */}
         <Section title="Aparência" palette={palette} fontFamily={fontFamily}>
-          <View style={[styles.toggleRow, { backgroundColor: palette.surface, borderColor: palette.border }]}>
+          <View style={[styles.toggleRow, { backgroundColor: palette.surface, borderColor: palette.border, borderRadius: palette.radius.control }]}>
             <Text style={[styles.toggleLabel, { color: palette.text, fontFamily }]}>Tema escuro</Text>
             <Switch value={config.theme === 'dark'} onValueChange={toggleTheme} />
           </View>
-          <View style={[styles.toggleRow, { backgroundColor: palette.surface, borderColor: palette.border }]}>
+          <View style={[styles.toggleRow, { backgroundColor: palette.surface, borderColor: palette.border, borderRadius: palette.radius.control }]}>
             <Text style={[styles.toggleLabel, { color: palette.text, fontFamily }]}>Texto na vertical</Text>
             <Switch value={config.verticalText} onValueChange={(v) => patch({ verticalText: v })} />
           </View>
-          <View style={[styles.toggleRow, { backgroundColor: palette.surface, borderColor: palette.border }]}>
+          <View style={[styles.toggleRow, { backgroundColor: palette.surface, borderColor: palette.border, borderRadius: palette.radius.control }]}>
             <Text style={[styles.toggleLabel, { color: palette.text, fontFamily }]}>Vibração no resultado</Text>
             <Switch value={config.hapticsEnabled} onValueChange={(v) => patch({ hapticsEnabled: v })} />
+          </View>
+        </Section>
+
+        {/* Cores e cantos (globais) */}
+        <Section title="Cores e cantos" palette={palette} fontFamily={fontFamily}>
+          <Pressable
+            onPress={() => setPickerTarget({ kind: 'text' })}
+            style={[styles.colorRow, { backgroundColor: palette.surface, borderColor: palette.border, borderRadius: palette.radius.control }]}
+          >
+            <Text style={[styles.toggleLabel, { color: palette.text, fontFamily }]}>Cor do texto</Text>
+            <View style={[styles.colorPreview, { backgroundColor: palette.text, borderColor: palette.border }]} />
+          </Pressable>
+          <Pressable
+            onPress={() => setPickerTarget({ kind: 'button' })}
+            style={[styles.colorRow, { backgroundColor: palette.surface, borderColor: palette.border, borderRadius: palette.radius.control }]}
+          >
+            <Text style={[styles.toggleLabel, { color: palette.text, fontFamily }]}>Cor dos botões</Text>
+            <View style={[styles.colorPreview, { backgroundColor: palette.primary, borderColor: palette.border }]} />
+          </Pressable>
+
+          <Text style={[styles.miniLabel, { color: palette.textMuted, fontFamily }]}>Arredondamento dos cantos</Text>
+          <View style={[styles.stepper, { backgroundColor: palette.surface, borderColor: palette.border, borderRadius: palette.radius.control }]}>
+            <Pressable onPress={() => adjustCorner(-LIMITS.cornerRadiusStep)} style={styles.stepBtn}>
+              <Text style={[styles.stepBtnText, { color: palette.text }]}>−</Text>
+            </Pressable>
+            <Text style={[styles.stepValue, { color: palette.text, fontFamily }]}>{config.cornerRadius}px</Text>
+            <Pressable onPress={() => adjustCorner(LIMITS.cornerRadiusStep)} style={styles.stepBtn}>
+              <Text style={[styles.stepBtnText, { color: palette.text }]}>+</Text>
+            </Pressable>
+          </View>
+        </Section>
+
+        {/* Animação de vitória */}
+        <Section title="Animação de vitória" palette={palette} fontFamily={fontFamily}>
+          <View style={styles.fontRow}>
+            {WIN_ANIMATIONS.map((opt) => {
+              const active = config.winAnimation === opt.key;
+              return (
+                <Pressable
+                  key={opt.key}
+                  onPress={() => patch({ winAnimation: opt.key })}
+                  style={[
+                    styles.fontChip,
+                    { backgroundColor: active ? palette.primary : palette.surface, borderColor: palette.border, borderRadius: palette.radius.control },
+                  ]}
+                >
+                  <Text style={{ color: active ? palette.primaryText : palette.text, fontFamily, fontSize: 15 }}>
+                    {opt.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
           </View>
         </Section>
 
@@ -119,7 +213,7 @@ export default function SettingsScreen() {
               onPress={() => patch({ pointerType: 'shape' })}
               style={[
                 styles.pointerChip,
-                { backgroundColor: palette.surface, borderColor: palette.border },
+                { backgroundColor: palette.surface, borderColor: palette.border, borderRadius: palette.radius.control },
                 config.pointerType === 'shape' && { borderColor: palette.primary, borderWidth: 2 },
               ]}
             >
@@ -135,7 +229,7 @@ export default function SettingsScreen() {
                   onPress={() => patch({ pointerType: 'emoji', pointerEmoji: emoji })}
                   style={[
                     styles.pointerChip,
-                    { backgroundColor: palette.surface, borderColor: palette.border },
+                    { backgroundColor: palette.surface, borderColor: palette.border, borderRadius: palette.radius.control },
                     active && { borderColor: palette.primary, borderWidth: 2 },
                   ]}
                 >
@@ -185,7 +279,7 @@ export default function SettingsScreen() {
               onPress={() => patch({ backgroundColor: undefined })}
               style={[
                 styles.bgChip,
-                { backgroundColor: palette.surface, borderColor: palette.border },
+                { backgroundColor: palette.surface, borderColor: palette.border, borderRadius: palette.radius.control },
                 !config.backgroundColor && { borderColor: palette.primary, borderWidth: 2 },
               ]}
             >
@@ -205,7 +299,7 @@ export default function SettingsScreen() {
             {/* Cor personalizada (abre o seletor) */}
             <Pressable
               onPress={() => setPickerTarget({ kind: 'background' })}
-              style={[styles.bgChip, { backgroundColor: palette.surface, borderColor: palette.border }]}
+              style={[styles.bgChip, { backgroundColor: palette.surface, borderColor: palette.border, borderRadius: palette.radius.control }]}
             >
               <Text style={{ color: palette.text, fontSize: 13, fontFamily }}>🎨 Cor</Text>
             </Pressable>
@@ -242,7 +336,7 @@ export default function SettingsScreen() {
                   onPress={() => patch({ fontFamily: key })}
                   style={[
                     styles.fontChip,
-                    { backgroundColor: active ? palette.primary : palette.surface, borderColor: palette.border },
+                    { backgroundColor: active ? palette.primary : palette.surface, borderColor: palette.border, borderRadius: palette.radius.control },
                   ]}
                 >
                   <Text style={{ color: active ? palette.primaryText : palette.text, fontFamily: FONT_FAMILIES[key], fontSize: 15 }}>
@@ -256,7 +350,7 @@ export default function SettingsScreen() {
 
         {/* Duração do giro */}
         <Section title="Duração do giro" palette={palette} fontFamily={fontFamily}>
-          <View style={[styles.stepper, { backgroundColor: palette.surface, borderColor: palette.border }]}>
+          <View style={[styles.stepper, { backgroundColor: palette.surface, borderColor: palette.border, borderRadius: palette.radius.control }]}>
             <Pressable onPress={() => adjustDuration(-LIMITS.spinStepMs)} style={styles.stepBtn}>
               <Text style={[styles.stepBtnText, { color: palette.text }]}>−</Text>
             </Pressable>
@@ -271,7 +365,7 @@ export default function SettingsScreen() {
 
         {/* Tamanho da roleta */}
         <Section title="Tamanho da roleta" palette={palette} fontFamily={fontFamily}>
-          <View style={[styles.stepper, { backgroundColor: palette.surface, borderColor: palette.border }]}>
+          <View style={[styles.stepper, { backgroundColor: palette.surface, borderColor: palette.border, borderRadius: palette.radius.control }]}>
             <Pressable onPress={() => adjustWheelScale(-LIMITS.wheelScaleStep)} style={styles.stepBtn}>
               <Text style={[styles.stepBtnText, { color: palette.text }]}>−</Text>
             </Pressable>
@@ -318,7 +412,7 @@ export default function SettingsScreen() {
             disabled={config.segments.length >= LIMITS.maxSegments}
             style={[
               styles.addBtn,
-              { borderColor: palette.primary, opacity: config.segments.length >= LIMITS.maxSegments ? 0.4 : 1 },
+              { borderColor: palette.primary, opacity: config.segments.length >= LIMITS.maxSegments ? 0.4 : 1, borderRadius: palette.radius.card },
             ]}
           >
             <Text style={[styles.addText, { color: palette.primary, fontFamily }]}>+ Adicionar opção</Text>
@@ -331,7 +425,7 @@ export default function SettingsScreen() {
         color={pickerColor}
         palette={palette}
         fontFamily={fontFamily}
-        swatches={pickerTarget?.kind === 'background' ? BACKGROUND_PALETTE : SEGMENT_PALETTE}
+        swatches={pickerSwatches}
         onChange={applyPickerColor}
         onClose={() => setPickerTarget(null)}
       />
@@ -384,4 +478,7 @@ const styles = StyleSheet.create({
   hint: { fontSize: 12, marginTop: 2 },
   pointerRow: { flexDirection: 'row', gap: 8, paddingVertical: 2 },
   pointerChip: { width: 48, height: 48, borderRadius: 12, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  colorRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderWidth: 1, borderRadius: 14, paddingHorizontal: 16, paddingVertical: 12 },
+  colorPreview: { width: 28, height: 28, borderRadius: 8, borderWidth: 1 },
+  miniLabel: { fontSize: 12, letterSpacing: 1, marginTop: 4 },
 });

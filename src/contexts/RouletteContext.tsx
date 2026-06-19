@@ -3,7 +3,27 @@ import type { RouletteConfig, Segment, ThemeMode } from '@/types';
 import { palettes, type Palette } from '@/constants/theme';
 import { createId, LIMITS } from '@/constants/defaults';
 import { SEGMENT_PALETTE } from '@/constants/theme';
+import { readableTextColor } from '@/utils/colors';
 import { useRouletteStorage } from '@/hooks/useRouletteStorage';
+
+/** Monta a paleta efetiva: cores do tema + ajustes do usuário + raios globais. */
+function buildPalette(config: RouletteConfig): Palette {
+  const base = palettes[config.theme];
+  const primary = config.buttonColor ?? base.primary;
+  const cr = config.cornerRadius ?? 14;
+  return {
+    ...base,
+    text: config.textColor ?? base.text,
+    primary,
+    // Texto do botão sempre legível sobre a cor escolhida.
+    primaryText: config.buttonColor ? readableTextColor(primary) : base.primaryText,
+    radius: {
+      small: Math.round(cr * 0.6),
+      control: cr,
+      card: Math.round(cr * 1.6),
+    },
+  };
+}
 
 interface RouletteContextValue {
   config: RouletteConfig;
@@ -59,7 +79,7 @@ export function RouletteProvider({ children }: { children: ReactNode }) {
 
     return {
       config,
-      palette: palettes[config.theme],
+      palette: buildPalette(config),
       hydrated,
       setConfig,
       patch,

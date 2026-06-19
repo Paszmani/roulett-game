@@ -18,15 +18,15 @@ export function ResultModal({ visible, segment, palette, fontFamily, onClose }: 
       <Pressable style={styles.backdrop} onPress={onClose}>
         {/* Chamas da vitória (atrás do conteúdo) */}
         <WinFlames active={visible} />
-        <View style={[styles.card, { backgroundColor: palette.surface, borderColor: palette.border }]}>
+        <View style={[styles.card, { backgroundColor: palette.surface, borderColor: palette.border, borderRadius: palette.radius.card }]}>
           <Text style={[styles.eyebrow, { color: palette.textMuted, fontFamily }]}>Resultado</Text>
-          <View style={[styles.badge, { backgroundColor: segment?.color ?? palette.primary }]}>
+          <View style={[styles.badge, { backgroundColor: segment?.color ?? palette.primary, borderRadius: palette.radius.control }]}>
             <Text style={[styles.badgeText, { color: readableTextColor(segment?.color ?? palette.primary), fontFamily }]}>
               {segment?.label ?? '—'}
             </Text>
           </View>
           <Pressable
-            style={[styles.button, { backgroundColor: palette.primary }]}
+            style={[styles.button, { backgroundColor: palette.primary, borderRadius: palette.radius.control }]}
             onPress={onClose}
           >
             <Text style={[styles.buttonText, { color: palette.primaryText, fontFamily }]}>Girar novamente</Text>

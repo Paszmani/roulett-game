@@ -6,7 +6,7 @@ import Animated, {
   runOnJS,
   useAnimatedStyle,
   useSharedValue,
-  withDecay,
+  withSequence,
   withTiming,
 } from 'react-native-reanimated';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
@@ -22,16 +22,18 @@ import Svg, {
 import type { PointerType, Segment } from '@/types';
 import { arcPath, polarToCartesian, segmentMidAngle, wedgeBBox } from '@/utils/geometry';
 import { readableTextColor } from '@/utils/colors';
-import { computeSpin, winnerFromRotation } from '@/domain/roulette';
+import { computeSpin } from '@/domain/roulette';
 
 // ── Ajustes do giro por toque/arraste ───────────────────────────────────────
-// A roleta segue o dedo (ângulo do toque em relação ao centro). Ao soltar,
-// a velocidade angular do gesto vira inércia (withDecay).
-const VELOCITY_BOOST = 1.15; // intensidade do impulso ao soltar (↑ = gira mais forte)
-const DECELERATION = 0.998; // tempo do giro: mais perto de 1 = gira por mais tempo
-const MIN_FLICK_DEG_PER_S = 90; // abaixo disso é só um ajuste, não conta como giro
-const MAX_FLICK_DEG_PER_S = 2600; // teto para não girar absurdamente rápido
+// A roleta segue o dedo (ângulo do toque em relação ao centro). Ao SOLTAR com
+// impulso, dispara o MESMO giro do botão (withTiming + duração configurada +
+// vencedor justo). O "flick" só decide SE houve giro, não a força dele.
+const VELOCITY_BOOST = 1.30; // sensibilidade do flick (↑ = conta como giro mais fácil)
+const MIN_FLICK_DEG_PER_S = 100; // abaixo disso é só um ajuste, não conta como giro
 const MIN_TOUCH_RADIUS_SQ = 100; // ignora toques muito próximos do centro (instável)
+// Fluidez do giro: pequeno overshoot + assentamento de volta à posição exata.
+const SPIN_OVERSHOOT_DEG = 5; // quantos graus passa do alvo antes de assentar
+const SPIN_SETTLE_MS = 420; // duração do "encaixe" final de volta ao vencedor
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface WheelHandle {
@@ -45,6 +47,8 @@ interface WheelProps {
   fontFamily: string;
   durationMs: number;
   pointerColor: string;
+  /** Cor de fundo da tela — usada para o "entalhe" do ponteiro padrão. */
+  backgroundColor: string;
   isSpinning: boolean;
   /** Texto das fatias na vertical (radial, ao longo do raio). */
   verticalText: boolean;
@@ -71,6 +75,7 @@ export const Wheel = forwardRef<WheelHandle, WheelProps>(function Wheel(
     fontFamily,
     durationMs,
     pointerColor,
+    backgroundColor,
     isSpinning,
     verticalText,
     pointerType,
@@ -86,8 +91,8 @@ export const Wheel = forwardRef<WheelHandle, WheelProps>(function Wheel(
   const count = segments.length;
   const cx = size / 2;
   const cy = size / 2;
-  // Aro cinza liso ocupa a borda externa; as fatias ficam logo dentro dele.
-  const ringWidth = Math.max(8, size * 0.045);
+  // Aro fino e claro na borda externa; as fatias ficam logo dentro dele.
+  const ringWidth = Math.max(5, size * 0.02);
   const radius = size / 2 - ringWidth - 2;
   const seg = 360 / count;
 
@@ -95,21 +100,30 @@ export const Wheel = forwardRef<WheelHandle, WheelProps>(function Wheel(
     transform: [{ rotate: `${rotation.value}deg` }],
   }));
 
-  useImperativeHandle(ref, () => ({
-    spin() {
-      if (isSpinning || count < 2) return;
-      const { targetRotation, winnerIndex } = computeSpin(rotation.value, count);
-      onSpinStart();
-      rotation.value = withTiming(
+  // Giro padrão (usado pelo botão E pelo flick): várias voltas + vencedor justo.
+  // Fluidez: desaceleração longa (ease-out tipo "expo") + pequeno overshoot que
+  // assenta de volta na posição exata — sensação natural de roda real.
+  const triggerSpin = useCallback(() => {
+    if (isSpinning || count < 2) return;
+    const { targetRotation, winnerIndex } = computeSpin(rotation.value, count);
+    onSpinStart();
+    rotation.value = withSequence(
+      withTiming(targetRotation + SPIN_OVERSHOOT_DEG, {
+        duration: durationMs,
+        easing: Easing.bezier(0.16, 1, 0.3, 1),
+      }),
+      withTiming(
         targetRotation,
-        { duration: durationMs, easing: Easing.out(Easing.cubic) },
+        { duration: SPIN_SETTLE_MS, easing: Easing.out(Easing.quad) },
         (finished) => {
           'worklet';
           if (finished) runOnJS(onSpinEnd)(winnerIndex);
         },
-      );
-    },
-  }));
+      ),
+    );
+  }, [isSpinning, count, rotation, onSpinStart, onSpinEnd, durationMs]);
+
+  useImperativeHandle(ref, () => ({ spin: triggerSpin }), [triggerSpin]);
 
   // Conteúdo estático do SVG memoizado: não recalcula a cada giro (otimização).
   const wheelContent = useMemo(() => {
@@ -131,7 +145,7 @@ export const Wheel = forwardRef<WheelHandle, WheelProps>(function Wheel(
           const start = i * seg;
           const end = start + seg;
           const mid = segmentMidAngle(i, count);
-          const labelPos = polarToCartesian(cx, cy, radius * 0.62, mid);
+          const labelPos = polarToCartesian(cx, cy, radius * 0.7, mid);
           const path = arcPath(cx, cy, radius, start, end);
           const hasImage = !!s.image;
           const bbox = hasImage ? wedgeBBox(cx, cy, radius, start, end) : null;
@@ -177,26 +191,15 @@ export const Wheel = forwardRef<WheelHandle, WheelProps>(function Wheel(
           );
         })}
 
-        {/* Aro cinza liso (sem sombra/brilho) */}
-        <Circle cx={cx} cy={cy} r={radius + ringWidth / 2} fill="none" stroke="#9CA3AF" strokeWidth={ringWidth} />
-        <Circle cx={cx} cy={cy} r={radius + ringWidth} fill="none" stroke="#6B7280" strokeWidth={1.2} />
-        <Circle cx={cx} cy={cy} r={radius} fill="none" stroke="#6B7280" strokeWidth={1.2} />
-
-        {/* Eixo central (menor e cinza) */}
-        <Circle cx={cx} cy={cy} r={radius * 0.09} fill="#475569" />
-        <Circle cx={cx} cy={cy} r={radius * 0.062} fill="#CBD5E1" />
+        {/* Aro fino e claro (estilo limpo) */}
+        <Circle cx={cx} cy={cy} r={radius + ringWidth / 2} fill="none" stroke="#FFFFFF" strokeWidth={ringWidth} />
+        <Circle cx={cx} cy={cy} r={radius + ringWidth} fill="none" stroke="#D7DBE2" strokeWidth={1} />
+        <Circle cx={cx} cy={cy} r={radius} fill="none" stroke="#D7DBE2" strokeWidth={1} />
       </Svg>
     );
   }, [segments, size, fontFamily, verticalText, cx, cy, radius, ringWidth, seg, count]);
 
   // Giro por toque/arraste (mesmo gesto no toque e no mouse/web).
-  const handleSettle = useCallback(
-    (finalRotation: number) => {
-      onSpinEnd(winnerFromRotation(finalRotation, count));
-    },
-    [onSpinEnd, count],
-  );
-
   const panGesture = useMemo(
     () =>
       Gesture.Pan()
@@ -222,25 +225,17 @@ export const Wheel = forwardRef<WheelHandle, WheelProps>(function Wheel(
           const rx = e.x - cx;
           const ry = e.y - cy;
           const r2 = rx * rx + ry * ry;
-          // Velocidade angular (deg/s) a partir da velocidade linear do gesto.
+          // Velocidade angular (deg/s) do gesto — só para decidir se houve "flick".
           let angVel =
             r2 > MIN_TOUCH_RADIUS_SQ
               ? ((rx * e.velocityY - ry * e.velocityX) / r2) * (180 / Math.PI)
               : 0;
           angVel *= VELOCITY_BOOST;
           if (Math.abs(angVel) < MIN_FLICK_DEG_PER_S) return; // foi só um ajuste, não giro
-          angVel = Math.max(-MAX_FLICK_DEG_PER_S, Math.min(MAX_FLICK_DEG_PER_S, angVel));
-          runOnJS(onSpinStart)();
-          rotation.value = withDecay({ velocity: angVel, deceleration: DECELERATION }, (finished) => {
-            if (finished) {
-              const final = rotation.value;
-              // Normaliza p/ não crescer indefinidamente (mantém o ângulo visual).
-              rotation.value = ((final % 360) + 360) % 360;
-              runOnJS(handleSettle)(final);
-            }
-          });
+          // Houve flick → gira igual ao botão (a partir da posição atual).
+          runOnJS(triggerSpin)();
         }),
-    [isSpinning, count, onSpinStart, handleSettle, rotation, prevAngle, cx, cy],
+    [isSpinning, count, triggerSpin, rotation, prevAngle, cx, cy],
   );
 
   // Ponteiro: imagem, emoji ou seta padrão.
@@ -249,27 +244,43 @@ export const Wheel = forwardRef<WheelHandle, WheelProps>(function Wheel(
   const useEmoji = pointerType === 'emoji' && !!pointerEmoji;
   const isCustom = useImage || useEmoji;
 
+  const notchW = size * 0.085;
+  const notchH = size * 0.062;
+  const hubSize = Math.max(44, radius * 0.34);
+  const coloredTop = size / 2 - radius; // y do topo da área colorida
+
   return (
     <GestureDetector gesture={panGesture}>
       <View style={{ width: size, height: size }}>
-        {/* Ponteiro fixo no topo (não gira) */}
-        <View style={[styles.pointer, { top: isCustom ? -ptSize * 0.55 : -2 }]} pointerEvents="none">
-          {useImage ? (
-            <Image
-              source={{ uri: pointerImage }}
-              style={{ width: ptSize, height: ptSize }}
-              resizeMode="contain"
-            />
-          ) : useEmoji ? (
-            <Text style={{ fontSize: ptSize, lineHeight: ptSize * 1.1 }}>{pointerEmoji}</Text>
-          ) : (
-            <Svg width={36} height={28} viewBox="0 0 36 28">
-              <Path d="M18 28 L2 2 L34 2 Z" fill={pointerColor} />
-            </Svg>
-          )}
-        </View>
-
         <Animated.View style={animatedProps}>{wheelContent}</Animated.View>
+
+        {/* Ponteiro: imagem, emoji ou entalhe (recorte) no topo */}
+        {isCustom ? (
+          <View style={[styles.pointer, { top: -ptSize * 0.45 }]} pointerEvents="none">
+            {useImage ? (
+              <Image source={{ uri: pointerImage }} style={{ width: ptSize, height: ptSize }} resizeMode="contain" />
+            ) : (
+              <Text style={{ fontSize: ptSize, lineHeight: ptSize * 1.1 }}>{pointerEmoji}</Text>
+            )}
+          </View>
+        ) : (
+          <View style={[styles.pointer, { top: coloredTop - 2 }]} pointerEvents="none">
+            <Svg width={notchW} height={notchH} viewBox="0 0 34 24">
+              <Path d="M0 0 L34 0 L17 24 Z" fill={backgroundColor} stroke="#CFD4DC" strokeWidth={1.3} />
+            </Svg>
+          </View>
+        )}
+
+        {/* Eixo central fixo (não gira) com ícone de girar */}
+        <View
+          pointerEvents="none"
+          style={[
+            styles.hub,
+            { width: hubSize, height: hubSize, borderRadius: hubSize / 2, top: cy - hubSize / 2, left: cx - hubSize / 2 },
+          ]}
+        >
+          <Text style={{ fontSize: hubSize * 0.5, color: '#3A3F46', lineHeight: hubSize * 0.64 }}>↻</Text>
+        </View>
       </View>
     </GestureDetector>
   );
@@ -282,5 +293,14 @@ const styles = StyleSheet.create({
     right: 0,
     alignItems: 'center',
     zIndex: 10,
+  },
+  hub: {
+    position: 'absolute',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E2E6EC',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 9,
   },
 });

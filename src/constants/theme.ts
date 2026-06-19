@@ -1,7 +1,7 @@
 import type { FontKey, ThemeMode } from '@/types';
 
-/** Paleta de cores por tema (claro/escuro). */
-export const palettes: Record<ThemeMode, {
+/** Cores cruas de um tema (sem os ajustes do usuário). */
+export interface ColorScheme {
   background: string;
   surface: string;
   surfaceAlt: string;
@@ -12,7 +12,17 @@ export const palettes: Record<ThemeMode, {
   primaryText: string;
   accent: string;
   pointer: string;
-}> = {
+}
+
+/** Raios de canto derivados do "arredondamento global". */
+export interface RadiusScale {
+  small: number;
+  control: number;
+  card: number;
+}
+
+/** Paleta de cores por tema (claro/escuro). */
+export const palettes: Record<ThemeMode, ColorScheme> = {
   dark: {
     background: '#0F172A',
     surface: '#1E293B',
@@ -39,7 +49,23 @@ export const palettes: Record<ThemeMode, {
   },
 };
 
-export type Palette = (typeof palettes)[ThemeMode];
+/**
+ * Paleta efetiva usada pelos componentes: cores do tema + ajustes do usuário
+ * (cor de texto/botão) + raios de canto globais. Montada no RouletteContext.
+ */
+export interface Palette extends ColorScheme {
+  radius: RadiusScale;
+}
+
+/** Sugestões de cor para texto e botões. */
+export const TEXT_COLOR_SWATCHES: string[] = [
+  '#F8FAFC', '#0F172A', '#FDE68A', '#FCA5A5', '#86EFAC',
+  '#7DD3FC', '#D8B4FE', '#F9A8D4', '#FFFFFF', '#94A3B8',
+];
+export const BUTTON_COLOR_SWATCHES: string[] = [
+  '#7C3AED', '#2563EB', '#0EA5E9', '#10B981', '#22C55E',
+  '#F59E0B', '#EF4444', '#EC4899', '#F43F5E', '#475569',
+];
 
 /** Emojis sugeridos para o ponteiro da roleta. */
 export const POINTER_EMOJIS: string[] = [

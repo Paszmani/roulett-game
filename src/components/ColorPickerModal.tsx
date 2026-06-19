@@ -143,7 +143,7 @@ export function ColorPickerModal({
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <Pressable style={styles.backdrop} onPress={onClose}>
         <Pressable
-          style={[styles.card, { backgroundColor: palette.surface, borderColor: palette.border }]}
+          style={[styles.card, { backgroundColor: palette.surface, borderColor: palette.border, borderRadius: palette.radius.card }]}
           onPress={(e) => e.stopPropagation()}
         >
           {/* Preview + hex */}
@@ -151,7 +151,7 @@ export function ColorPickerModal({
             <View style={[styles.preview, { backgroundColor: current, borderColor: palette.border }]}>
               <Text style={{ color: readableTextColor(current), fontFamily, fontSize: 12 }}>Aa</Text>
             </View>
-            <View style={[styles.hexBox, { borderColor: palette.border, backgroundColor: palette.surfaceAlt }]}>
+            <View style={[styles.hexBox, { borderColor: palette.border, backgroundColor: palette.surfaceAlt, borderRadius: palette.radius.control }]}>
               <Text style={[styles.hash, { color: palette.textMuted, fontFamily }]}>#</Text>
               <TextInput
                 value={hexText.replace('#', '')}
@@ -203,7 +203,7 @@ export function ColorPickerModal({
             ))}
           </ScrollView>
 
-          <Pressable style={[styles.done, { backgroundColor: palette.primary }]} onPress={onClose}>
+          <Pressable style={[styles.done, { backgroundColor: palette.primary, borderRadius: palette.radius.control }]} onPress={onClose}>
             <Text style={{ color: palette.primaryText, fontFamily, fontSize: 16 }}>Concluir</Text>
           </Pressable>
         </Pressable>

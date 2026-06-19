@@ -22,6 +22,8 @@ export const DEFAULT_CONFIG: RouletteConfig = {
   wheelScale: 1,
   hapticsEnabled: true,
   theme: 'dark',
+  cornerRadius: 14,
+  winAnimation: 'confetti',
   verticalText: false,
   pointerType: 'shape',
   pointerEmoji: '🧯',
@@ -38,4 +40,7 @@ export const LIMITS = {
   minWheelScale: 0.6,
   maxWheelScale: 1,
   wheelScaleStep: 0.1,
+  minCornerRadius: 0,
+  maxCornerRadius: 28,
+  cornerRadiusStep: 4,
 };
