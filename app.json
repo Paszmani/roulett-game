@@ -4,6 +4,7 @@
     "slug": "roleta-personalizavel",
     "version": "1.0.0",
     "orientation": "portrait",
+    "icon": "./assets/icon.png",
     "scheme": "roleta",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
@@ -13,6 +14,7 @@
     "android": {
       "package": "com.gruposb.roleta",
       "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0F172A"
       },
       "edgeToEdgeEnabled": true,
@@ -42,8 +44,10 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#0F172A",
-          "resizeMode": "contain"
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 200,
+          "resizeMode": "contain",
+          "backgroundColor": "#0F172A"
         }
       ]
     ],

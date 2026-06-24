@@ -10,7 +10,8 @@
     "sw": "workbox generateSW workbox-config.js",
     "predeploy": "expo export -p web && node ./scripts/spa-fallback.js && workbox generateSW workbox-config.js",
     "deploy": "gh-pages --nojekyll -d dist",
-    "lint": "expo lint"
+    "lint": "expo lint",
+    "ios": "expo run:ios"
   },
   "dependencies": {
     "@expo-google-fonts/inter": "^0.4.1",
