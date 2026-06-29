@@ -24,7 +24,7 @@ export interface RadiusScale {
 /** Paleta de cores por tema (claro/escuro). */
 export const palettes: Record<ThemeMode, ColorScheme> = {
   dark: {
-    background: '#0F172A',
+    background: '#000000',
     surface: '#1E293B',
     surfaceAlt: '#334155',
     text: '#F8FAFC',
@@ -77,7 +77,7 @@ export const POINTER_EMOJIS: string[] = [
 /** Cores sugeridas para o plano de fundo da tela (escuros, tons ricos e claros suaves). */
 export const BACKGROUND_PALETTE: string[] = [
   // Escuros / neutros
-  '#0F172A', '#111827', '#0B1120', '#1C1917',
+  '#000000', '#0F172A', '#111827', '#0B1120', '#1C1917',
   // Tons profundos (jewel tones)
   '#1E1B4B', '#172554', '#0C4A6E', '#064E3B',
   '#3B0764', '#4A044E', '#581C2C', '#7C2D12',
