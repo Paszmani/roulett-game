@@ -27,8 +27,8 @@
       "output": "single",
       "favicon": "./public/favicon.png",
       "name": "Roleta Personalizável",
-      "themeColor": "#6D28D9",
-      "backgroundColor": "#0F172A",
+      "themeColor": "#000000",
+      "backgroundColor": "#000000",
       "display": "standalone",
       "shortName": "Roleta"
     },

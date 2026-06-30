@@ -51,6 +51,7 @@ if ('serviceWorker' in navigator) {
 }
 
 const bodyStyle = `
-html, body { height: 100%; margin: 0; background-color: #0F172A; }
+html, body { height: 100%; margin: 0; background-color: #000000; overscroll-behavior: none; }
+body { overflow-x: hidden; }
 #root { display: flex; height: 100%; }
 `;

@@ -27,16 +27,16 @@ export default function HomeScreen() {
   // Altura responsiva da logo (limitada para não competir com a roleta).
   const logoHeight = config.logo ? Math.min(Math.max(height * 0.1, 52), 104) : 0;
 
-  // Dimensiona a roleta para preencher quase a tela toda. Em portrait a roda é
-  // um círculo limitado pela LARGURA (diâmetro ≈ largura útil), então as margens
-  // laterais são mínimas. O teto de altura só entra em telas baixas/landscape:
-  // reserva espaço fixo para topo + pílula + botão + folgas. `wheelScale`
-  // (0.6–1.0) ainda permite ao usuário reduzir dentro desse espaço.
-  const SCREEN_MARGIN = 6;
-  const RESERVED_V = 56 /* topo */ + 64 /* botão */ + 48 /* folgas+safe */ + logoHeight;
-  const horizontalCap = Math.min(width, 760) - SCREEN_MARGIN * 2;
-  const verticalCap = height - RESERVED_V;
-  const wheelSize = Math.max(0, Math.min(horizontalCap, verticalCap)) * config.wheelScale;
+  // Dimensiona a roleta pela PROPORÇÃO real da tela: o diâmetro é a menor das
+  // dimensões úteis (largura − margens, altura − topo/logo/folgas), SEM teto fixo
+  // de pixels. Assim a roda ocupa a maior fração possível em qualquer dispositivo
+  // (totem, tablet, celular) — em portrait fica limitada pela largura; em telas
+  // baixas, pela altura. `wheelScale` (0.6–1.0) ainda permite reduzir.
+  const SCREEN_MARGIN = 8;
+  const RESERVED_V = 64 /* topo (título/engrenagem) */ + 40 /* folgas + safe */ + logoHeight;
+  const availW = width - SCREEN_MARGIN * 2;
+  const availH = height - RESERVED_V;
+  const wheelSize = Math.max(0, Math.min(availW, availH)) * config.wheelScale;
 
   function triggerHaptic() {
     if (config.hapticsEnabled && Platform.OS !== 'web') {
@@ -81,6 +81,8 @@ export default function HomeScreen() {
         <View style={styles.wheelArea}>
           <Wheel
             ref={wheelRef}
+            // toque no centro (↻), arraste ou flick giram a roda
+
             size={wheelSize}
             segments={config.segments}
             fontFamily={fontFamily}
@@ -105,19 +107,6 @@ export default function HomeScreen() {
             }}
           />
         </View>
-
-        <Pressable
-          onPress={() => wheelRef.current?.spin()}
-          disabled={isSpinning}
-          style={[
-            styles.spinButton,
-            { backgroundColor: palette.primary, opacity: isSpinning ? 0.6 : 1, borderRadius: palette.radius.card },
-          ]}
-        >
-          <Text style={[styles.spinText, { color: palette.primaryText, fontFamily }]}>
-            {isSpinning ? 'Girando…' : 'GIRAR'}
-          </Text>
-        </Pressable>
       </View>
 
       </SafeAreaView>
@@ -153,7 +142,7 @@ const styles = StyleSheet.create({
   root: { flex: 1 },
   bgImage: { ...StyleSheet.absoluteFillObject, width: '100%', height: '100%' },
   safe: { flex: 1 },
-  container: { flex: 1, paddingHorizontal: 6, paddingVertical: 8, alignItems: 'center', justifyContent: 'space-between', gap: 8, width: '100%', maxWidth: 760, alignSelf: 'center' },
+  container: { flex: 1, paddingHorizontal: 6, paddingVertical: 8, alignItems: 'center', justifyContent: 'space-between', gap: 8, width: '100%', alignSelf: 'center' },
   topBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', width: '100%' },
   title: { fontSize: 26, flex: 1, textAlign: 'center' },
   logo: { width: '100%', maxWidth: 320, alignSelf: 'center' },
@@ -161,8 +150,6 @@ const styles = StyleSheet.create({
   iconSpacer: { width: 44, height: 44 },
   iconText: { fontSize: 20 },
   wheelArea: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  spinButton: { width: '100%', maxWidth: 320, paddingVertical: 18, borderRadius: 18, alignItems: 'center' },
-  spinText: { fontSize: 20, letterSpacing: 2 },
   resultOverlay: {
     ...StyleSheet.absoluteFillObject,
     zIndex: 50,

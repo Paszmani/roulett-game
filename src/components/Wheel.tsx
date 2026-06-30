@@ -92,7 +92,7 @@ export const Wheel = forwardRef<WheelHandle, WheelProps>(function Wheel(
   const cx = size / 2;
   const cy = size / 2;
   // Aro fino e claro na borda externa; as fatias ficam logo dentro dele.
-  const ringWidth = Math.max(5, size * 0.02);
+  const ringWidth = Math.max(3, size * 0.013);
   const radius = size / 2 - ringWidth - 2;
   const seg = 360 / count;
 
@@ -238,6 +238,25 @@ export const Wheel = forwardRef<WheelHandle, WheelProps>(function Wheel(
     [isSpinning, count, triggerSpin, rotation, prevAngle, cx, cy],
   );
 
+  // Toque simples (sem arrastar) gira a roleta — o eixo central (↻) é o gatilho.
+  const tapGesture = useMemo(
+    () =>
+      Gesture.Tap()
+        .enabled(!isSpinning && count >= 2)
+        .maxDistance(14)
+        .onEnd((_e, success) => {
+          'worklet';
+          if (success) runOnJS(triggerSpin)();
+        }),
+    [isSpinning, count, triggerSpin],
+  );
+
+  // Toque dispara o giro; arraste segue o dedo e o flick também gira.
+  const wheelGesture = useMemo(
+    () => Gesture.Race(panGesture, tapGesture),
+    [panGesture, tapGesture],
+  );
+
   // Ponteiro: imagem, emoji ou seta padrão.
   const ptSize = Math.max(30, size * 0.12);
   const useImage = pointerType === 'image' && !!pointerImage;
@@ -250,7 +269,7 @@ export const Wheel = forwardRef<WheelHandle, WheelProps>(function Wheel(
   const coloredTop = size / 2 - radius; // y do topo da área colorida
 
   return (
-    <GestureDetector gesture={panGesture}>
+    <GestureDetector gesture={wheelGesture}>
       <View style={{ width: size, height: size }}>
         <Animated.View style={animatedProps}>{wheelContent}</Animated.View>
 

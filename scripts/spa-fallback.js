@@ -31,6 +31,13 @@ try {
 let html = fs.readFileSync(indexPath, 'utf8');
 
 const tags = [
+  // Fundo preto + sem rubber-band: evita a "faixa branca" ao arrastar no Android.
+  {
+    test: /id="global-bg"/,
+    tag:
+      '<style id="global-bg">html,body{height:100%;margin:0;background-color:#000000;' +
+      'overscroll-behavior:none}body{overflow-x:hidden}#root{display:flex;height:100%}</style>',
+  },
   { test: /rel="manifest"/, tag: `<link rel="manifest" href="${base}/manifest.json" />` },
   { test: /apple-touch-icon/, tag: `<link rel="apple-touch-icon" href="${base}/icon-192.png" />` },
   {
