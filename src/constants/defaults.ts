@@ -1,4 +1,4 @@
-import type { RouletteConfig, Segment } from '@/types';
+import type { LeadField, RouletteConfig, Segment } from '@/types';
 import { SEGMENT_PALETTE } from './theme';
 
 /** Gera um id curto e único o suficiente para uso local. */
@@ -14,6 +14,13 @@ export const DEFAULT_SEGMENTS: Segment[] = defaultLabels.map((label, i) => ({
   color: SEGMENT_PALETTE[(i * 3) % SEGMENT_PALETTE.length],
 }));
 
+/** Campos padrão do formulário de lead (usados quando a lista está vazia). */
+export const DEFAULT_LEAD_FIELDS: LeadField[] = [
+  { id: 'name', label: 'Nome', type: 'text', required: true, maxLength: 60 },
+  { id: 'email', label: 'E-mail', type: 'email', required: true },
+  { id: 'telefone', label: 'Telefone', type: 'tel', required: false },
+];
+
 export const DEFAULT_CONFIG: RouletteConfig = {
   title: 'Minha Roleta',
   segments: DEFAULT_SEGMENTS,
@@ -27,6 +34,8 @@ export const DEFAULT_CONFIG: RouletteConfig = {
   verticalText: false,
   pointerType: 'shape',
   pointerEmoji: '🧯',
+  leadCaptureEnabled: false,
+  leadFields: DEFAULT_LEAD_FIELDS,
 };
 
 export const STORAGE_KEY = '@roleta/config:v1';

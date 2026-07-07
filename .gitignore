@@ -34,3 +34,6 @@ Thumbs.db
 *.apk
 *.aab
 *.ipa
+
+# Electron (leads gravados em dev pela casca desktop)
+/data/

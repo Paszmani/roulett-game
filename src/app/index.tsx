@@ -6,6 +6,8 @@ import * as Haptics from 'expo-haptics';
 import { useRoulette } from '@/contexts/RouletteContext';
 import { Wheel, type WheelHandle } from '@/components/Wheel';
 import { WinAnimation } from '@/components/WinAnimation';
+import { LeadFormModal } from '@/components/LeadFormModal';
+import { DEFAULT_LEAD_FIELDS } from '@/constants/defaults';
 import { FONT_FAMILIES } from '@/constants/theme';
 import { readableTextColor } from '@/utils/colors';
 
@@ -20,6 +22,8 @@ export default function HomeScreen() {
   const [celebrateId, setCelebrateId] = useState(0);
   // Resultado central: aparece ao terminar o giro e some ao toque na tela.
   const [resultShown, setResultShown] = useState(false);
+  // Formulário de lead: abre ao dispensar o resultado (se habilitado nas configs).
+  const [leadVisible, setLeadVisible] = useState(false);
 
   const fontFamily = FONT_FAMILIES[config.fontFamily];
   const winner = winnerIndex != null ? config.segments[winnerIndex] : null;
@@ -113,7 +117,13 @@ export default function HomeScreen() {
 
       {/* Resultado central + celebração: cobre a tela e some ao toque. */}
       {resultShown ? (
-        <Pressable style={styles.resultOverlay} onPress={() => setResultShown(false)}>
+        <Pressable
+          style={styles.resultOverlay}
+          onPress={() => {
+            setResultShown(false);
+            if (config.leadCaptureEnabled && winner) setLeadVisible(true);
+          }}
+        >
           {/* Animação de vitória atrás (não captura o toque) */}
           <View style={StyleSheet.absoluteFill} pointerEvents="none">
             <WinAnimation key={celebrateId} type={config.winAnimation} active />
@@ -134,6 +144,15 @@ export default function HomeScreen() {
           <Text style={[styles.resultHint, { color: '#FFFFFF', fontFamily }]}>toque para continuar</Text>
         </Pressable>
       ) : null}
+
+      <LeadFormModal
+        visible={leadVisible}
+        fields={config.leadFields?.length ? config.leadFields : DEFAULT_LEAD_FIELDS}
+        prizeLabel={winner?.label ?? ''}
+        palette={palette}
+        fontFamily={fontFamily}
+        onClose={() => setLeadVisible(false)}
+      />
     </View>
   );
 }

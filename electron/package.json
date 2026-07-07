@@ -1,0 +1,16 @@
+{
+  "name": "roleta-desktop",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Casca Electron da Roleta — janela desktop offline + gravação de leads em disco",
+  "author": "GSB",
+  "main": "main.cjs",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder"
+  },
+  "devDependencies": {
+    "electron": "^33.0.2",
+    "electron-builder": "^25.1.8"
+  }
+}

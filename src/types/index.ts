@@ -12,6 +12,20 @@ export type PointerType = 'shape' | 'emoji' | 'image';
 /** Animação exibida ao vencer. */
 export type WinAnimationType = 'confetti' | 'fireworks' | 'stars' | 'coins' | 'hearts' | 'fire';
 
+/** Tipo de um campo do formulário de lead (mesmo modelo do Kiosk Maze). */
+export type LeadFieldType = 'text' | 'email' | 'tel' | 'select' | 'checkbox';
+
+/** Um campo do formulário de lead, configurável nas Configurações. */
+export interface LeadField {
+  id: string;
+  label: string;
+  type: LeadFieldType;
+  required: boolean;
+  maxLength?: number;
+  /** Opções quando type === 'select'. */
+  options?: string[];
+}
+
 /** Um setor (fatia) da roleta. */
 export interface Segment {
   id: string;
@@ -55,6 +69,10 @@ export interface RouletteConfig {
   backgroundColor?: string;
   /** Imagem de fundo (data URI). Tem prioridade sobre a cor de fundo. */
   backgroundImage?: string;
+  /** Captura de lead após o giro (opcional para não quebrar configs salvas). */
+  leadCaptureEnabled?: boolean;
+  /** Campos do formulário de lead (ausente/vazio = campos padrão). */
+  leadFields?: LeadField[];
 }
 
 /** Resultado de um giro. */

@@ -6,6 +6,7 @@ import { useRoulette } from '@/contexts/RouletteContext';
 import { SegmentEditor } from '@/components/SegmentEditor';
 import { ImageField } from '@/components/ImageField';
 import { ColorPickerModal } from '@/components/ColorPickerModal';
+import { LeadFieldEditor } from '@/components/LeadFieldEditor';
 import {
   BACKGROUND_PALETTE,
   BUTTON_COLOR_SWATCHES,
@@ -15,9 +16,11 @@ import {
   SEGMENT_PALETTE,
   TEXT_COLOR_SWATCHES,
 } from '@/constants/theme';
-import { LIMITS } from '@/constants/defaults';
+import { createId, DEFAULT_LEAD_FIELDS, LIMITS } from '@/constants/defaults';
 import { pickImage, type PickImageOptions } from '@/utils/imagePicker';
-import type { FontKey, WinAnimationType } from '@/types';
+import { clearStoredLeads, exportLeads, getKiosk } from '@/leads/leadStore';
+import { exportThemeFile, importThemeFile } from '@/utils/configIO';
+import type { FontKey, LeadField, WinAnimationType } from '@/types';
 
 const WIN_ANIMATIONS: { key: WinAnimationType; label: string }[] = [
   { key: 'confetti', label: 'Confete' },
@@ -41,7 +44,7 @@ function notify(title: string, msg: string) {
 
 export default function SettingsScreen() {
   const router = useRouter();
-  const { config, palette, patch, addSegment, removeSegment, updateSegment, toggleTheme } = useRoulette();
+  const { config, palette, patch, setConfig, addSegment, removeSegment, updateSegment, toggleTheme } = useRoulette();
   const fontFamily = FONT_FAMILIES[config.fontFamily];
   // Chave do item cuja imagem está sendo selecionada: `seg-<id>`, `logo` ou `background`.
   const [pickingKey, setPickingKey] = useState<string | null>(null);
@@ -113,6 +116,62 @@ export default function SettingsScreen() {
       Math.max(LIMITS.minSpinMs, config.spinDurationMs + delta),
     );
     patch({ spinDurationMs: next });
+  }
+
+  // Campos do formulário de lead (lista vazia = padrão).
+  const leadFields = config.leadFields?.length ? config.leadFields : DEFAULT_LEAD_FIELDS;
+
+  function updateLeadField(id: string, partial: Partial<LeadField>) {
+    patch({ leadFields: leadFields.map((f) => (f.id === id ? { ...f, ...partial } : f)) });
+  }
+
+  function addLeadField() {
+    patch({ leadFields: [...leadFields, { id: `campo-${createId()}`, label: '', type: 'text', required: false }] });
+  }
+
+  function removeLeadField(id: string) {
+    patch({ leadFields: leadFields.filter((f) => f.id !== id) });
+  }
+
+  function handleExportTheme() {
+    const result = exportThemeFile(config);
+    if (result === 'ok') notify('Tema', 'Arquivo roleta-tema.json baixado.');
+    else notify('Tema', 'Exportação disponível nas versões web e desktop.');
+  }
+
+  async function handleImportTheme() {
+    const result = await importThemeFile();
+    if (result.status === 'ok') {
+      setConfig(result.config);
+      notify('Tema', 'Tema importado e aplicado.');
+    } else if (result.status === 'invalid') {
+      notify('Tema', 'Arquivo inválido: use um JSON exportado pela própria roleta.');
+    } else if (result.status === 'unsupported') {
+      notify('Tema', 'Importação disponível nas versões web e desktop.');
+    }
+  }
+
+  async function handleExportLeads() {
+    const result = await exportLeads();
+    if (result === 'kiosk') notify('Leads', 'Pasta de leads aberta no Explorador.');
+    else if (result === 'downloaded') notify('Leads', 'CSV de leads baixado.');
+    else if (result === 'empty') notify('Leads', 'Nenhum lead registrado ainda.');
+    else notify('Leads', 'Exportação disponível nas versões web e desktop.');
+  }
+
+  function handleClearLeads() {
+    const doClear = () =>
+      clearStoredLeads()
+        .then(() => notify('Leads', 'Leads apagados.'))
+        .catch(() => notify('Leads', 'Não foi possível apagar os leads.'));
+    if (Platform.OS === 'web') {
+      if (window.confirm('Apagar todos os leads deste dispositivo?')) void doClear();
+    } else {
+      Alert.alert('Apagar leads', 'Apagar todos os leads deste dispositivo?', [
+        { text: 'Cancelar', style: 'cancel' },
+        { text: 'Apagar', style: 'destructive', onPress: () => void doClear() },
+      ]);
+    }
   }
 
   return (
@@ -416,6 +475,80 @@ export default function SettingsScreen() {
             ]}
           >
             <Text style={[styles.addText, { color: palette.primary, fontFamily }]}>+ Adicionar opção</Text>
+          </Pressable>
+        </Section>
+
+        {/* Captura de leads */}
+        <Section title="Captura de leads" palette={palette} fontFamily={fontFamily}>
+          <View style={[styles.toggleRow, { backgroundColor: palette.surface, borderColor: palette.border, borderRadius: palette.radius.control }]}>
+            <Text style={[styles.toggleLabel, { color: palette.text, fontFamily }]}>Pedir cadastro após o giro</Text>
+            <Switch
+              value={config.leadCaptureEnabled === true}
+              onValueChange={(v) => patch({ leadCaptureEnabled: v })}
+            />
+          </View>
+          <Text style={[styles.hint, { color: palette.textMuted, fontFamily }]}>
+            {getKiosk()
+              ? 'Os leads são gravados em data/leads (JSON + CSV) ao lado do app.'
+              : 'Ao dispensar o resultado, o formulário abaixo é exibido. Os leads ficam neste dispositivo.'}
+          </Text>
+
+          <Text style={[styles.miniLabel, { color: palette.textMuted, fontFamily }]}>Campos do formulário</Text>
+          <View style={{ gap: 12 }}>
+            {leadFields.map((f) => (
+              <LeadFieldEditor
+                key={f.id}
+                field={f}
+                palette={palette}
+                fontFamily={fontFamily}
+                canRemove={leadFields.length > 1}
+                onChange={(partial) => updateLeadField(f.id, partial)}
+                onRemove={() => removeLeadField(f.id)}
+              />
+            ))}
+          </View>
+          <Pressable
+            onPress={addLeadField}
+            style={[styles.addBtn, { borderColor: palette.primary, borderRadius: palette.radius.card }]}
+          >
+            <Text style={[styles.addText, { color: palette.primary, fontFamily }]}>+ Adicionar campo</Text>
+          </Pressable>
+
+          <Pressable
+            onPress={() => void handleExportLeads()}
+            style={[styles.addBtn, { borderColor: palette.primary, borderRadius: palette.radius.card }]}
+          >
+            <Text style={[styles.addText, { color: palette.primary, fontFamily }]}>
+              {getKiosk() ? 'Abrir pasta de leads' : 'Exportar leads (CSV)'}
+            </Text>
+          </Pressable>
+          {!getKiosk() ? (
+            <Pressable
+              onPress={handleClearLeads}
+              style={[styles.addBtn, { borderColor: palette.border, borderRadius: palette.radius.card }]}
+            >
+              <Text style={[styles.addText, { color: palette.textMuted, fontFamily }]}>Apagar leads</Text>
+            </Pressable>
+          ) : null}
+        </Section>
+
+        {/* Tema como arquivo (exportar/importar) */}
+        <Section title="Tema (arquivo)" palette={palette} fontFamily={fontFamily}>
+          <Text style={[styles.hint, { color: palette.textMuted, fontFamily }]}>
+            Salva toda a personalização (opções, cores, imagens, campos do formulário) em um
+            JSON para reaproveitar em outro evento ou máquina.
+          </Text>
+          <Pressable
+            onPress={handleExportTheme}
+            style={[styles.addBtn, { borderColor: palette.primary, borderRadius: palette.radius.card }]}
+          >
+            <Text style={[styles.addText, { color: palette.primary, fontFamily }]}>Exportar tema (JSON)</Text>
+          </Pressable>
+          <Pressable
+            onPress={() => void handleImportTheme()}
+            style={[styles.addBtn, { borderColor: palette.primary, borderRadius: palette.radius.card }]}
+          >
+            <Text style={[styles.addText, { color: palette.primary, fontFamily }]}>Importar tema</Text>
           </Pressable>
         </Section>
       </ScrollView>

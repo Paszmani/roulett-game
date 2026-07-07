@@ -1,0 +1,25 @@
+appId: com.gsb.roleta
+productName: Roleta Personalizavel
+directories:
+  output: release
+# A casca vai no asar; o bundle web (npm run electron:web na raiz) vai FORA,
+# em resources/web: o export do Expo guarda fontes/imagens sob
+# web/assets/node_modules/**, e o empacotador aplica os filtros padrão de
+# node_modules dentro do asar, derrubando esses arquivos silenciosamente.
+files:
+  - main.cjs
+  - preload.cjs
+  - package.json
+extraResources:
+  - from: web
+    to: web
+win:
+  # `dir` (pasta win-unpacked com o .exe) + `zip` para transporte.
+  # Evita o alvo `portable`/`nsis`, que baixa o winCodeSign e exige privilégio
+  # de symlink (admin/Modo Desenvolvedor) no Windows.
+  target:
+    - dir
+    - zip
+  artifactName: ${productName}-${version}.${ext}
+  # Sem assinatura/edição do exe (app interno) — dispensa o winCodeSign.
+  signAndEditExecutable: false
