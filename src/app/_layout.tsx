@@ -3,6 +3,7 @@ import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { ReducedMotionConfig, ReduceMotion } from 'react-native-reanimated';
 import {
   Poppins_400Regular,
   Poppins_600SemiBold,
@@ -37,6 +38,10 @@ export default function RootLayout() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
+      {/* O giro e as animações de vitória SÃO o produto: sem isto, o modo
+          "reduzir movimento" do sistema (Windows/Android/iOS) faz o Reanimated
+          pular as animações e a roleta cai direto no resultado. */}
+      <ReducedMotionConfig mode={ReduceMotion.Never} />
       <RouletteProvider>
         <StatusBar style="auto" />
         <Stack screenOptions={{ headerShown: false, animation: 'fade' }}>
