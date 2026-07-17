@@ -1,37 +1,68 @@
 /**
  * Exportação/importação do tema (a RouletteConfig completa) como arquivo JSON
- * — o análogo do theme.json do Kiosk Maze. Funciona na web e no Electron
- * (o renderer é web); no app nativo os botões informam indisponibilidade.
+ * — o análogo do theme.json do Kiosk Maze. Funciona em TODAS as plataformas:
+ *
+ * - Web/Electron: download/upload via âncora e <input type=file>;
+ * - Android/iOS: grava no cache e abre a folha nativa de compartilhamento
+ *   (mesmo caminho do CSV de leads) / seletor de documentos do sistema.
+ *
+ * As imagens (fatias/logo/fundo/ponteiro) já viajam DENTRO do JSON: o
+ * imagePicker as converte para data-URI na escolha — nada extra a embutir.
  */
 
 import { Platform } from 'react-native';
+import * as DocumentPicker from 'expo-document-picker';
+import { File, Paths } from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
 import type { RouletteConfig, Segment } from '@/types';
 import { DEFAULT_CONFIG, createId } from '@/constants/defaults';
 import { SEGMENT_PALETTE } from '@/constants/theme';
 
-export type ExportThemeResult = 'ok' | 'unsupported';
+export type ExportThemeResult = 'downloaded' | 'shared' | 'unsupported';
 export type ImportThemeResult =
   | { status: 'ok'; config: RouletteConfig }
   | { status: 'cancelled' }
   | { status: 'invalid' }
   | { status: 'unsupported' };
 
+const FILE_NAME = 'roleta-tema.json';
+
 function isWebDocument(): boolean {
   return Platform.OS === 'web' && typeof document !== 'undefined';
 }
 
-export function exportThemeFile(config: RouletteConfig): ExportThemeResult {
-  if (!isWebDocument()) return 'unsupported';
-  const blob = new Blob([JSON.stringify(config, null, 2)], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = 'roleta-tema.json';
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
-  return 'ok';
+export async function exportThemeFile(config: RouletteConfig): Promise<ExportThemeResult> {
+  const json = JSON.stringify(config, null, 2);
+
+  if (isWebDocument()) {
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = FILE_NAME;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    return 'downloaded';
+  }
+
+  // Nativo: mesmo caminho do CSV de leads — grava no cache e compartilha
+  // (e-mail/Drive/WhatsApp). O destinatário importa o arquivo em outro totem.
+  if (!(await Sharing.isAvailableAsync())) return 'unsupported';
+
+  const file = new File(Paths.cache, FILE_NAME);
+  if (file.exists) file.delete();
+  file.create();
+  file.write(json);
+
+  await Sharing.shareAsync(file.uri, {
+    mimeType: 'application/json',
+    dialogTitle: 'Compartilhar tema (JSON)',
+    UTI: 'public.json',
+  });
+
+  return 'shared';
 }
 
 /** Saneia um segmento vindo de JSON externo (não confiável). */
@@ -68,27 +99,52 @@ export function resolveImportedTheme(raw: unknown): RouletteConfig | null {
   return { ...DEFAULT_CONFIG, ...(obj as Partial<RouletteConfig>), segments };
 }
 
+function parseTheme(text: string): RouletteConfig | null {
+  try {
+    return resolveImportedTheme(JSON.parse(text));
+  } catch {
+    return null;
+  }
+}
+
 export function importThemeFile(): Promise<ImportThemeResult> {
-  if (!isWebDocument()) return Promise.resolve({ status: 'unsupported' });
-  return new Promise((resolve) => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'application/json,.json';
-    input.onchange = async () => {
-      const file = input.files && input.files[0];
-      if (!file) {
-        resolve({ status: 'cancelled' });
-        return;
-      }
-      try {
-        const config = resolveImportedTheme(JSON.parse(await file.text()));
+  if (isWebDocument()) {
+    return new Promise((resolve) => {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'application/json,.json';
+      input.onchange = async () => {
+        const file = input.files && input.files[0];
+        if (!file) {
+          resolve({ status: 'cancelled' });
+          return;
+        }
+        const config = parseTheme(await file.text());
         resolve(config ? { status: 'ok', config } : { status: 'invalid' });
-      } catch {
-        resolve({ status: 'invalid' });
-      }
-    };
-    // Nem todo ambiente dispara 'cancel'; quando dispara, avisamos.
-    input.addEventListener('cancel', () => resolve({ status: 'cancelled' }));
-    input.click();
-  });
+      };
+      // Nem todo ambiente dispara 'cancel'; quando dispara, avisamos.
+      input.addEventListener('cancel', () => resolve({ status: 'cancelled' }));
+      input.click();
+    });
+  }
+
+  // Nativo: seletor de documentos do sistema. `type` amplo de propósito —
+  // apps de e-mail/WhatsApp gravam .json com MIME genérico e um filtro
+  // estrito esconderia o arquivo; a validação real é o parse.
+  return (async (): Promise<ImportThemeResult> => {
+    const picked = await DocumentPicker.getDocumentAsync({
+      type: ['application/json', 'text/plain', 'application/octet-stream'],
+      copyToCacheDirectory: true,
+      multiple: false,
+    });
+    if (picked.canceled) return { status: 'cancelled' };
+    const uri = picked.assets[0]?.uri;
+    if (!uri) return { status: 'cancelled' };
+    try {
+      const config = parseTheme(await new File(uri).text());
+      return config ? { status: 'ok', config } : { status: 'invalid' };
+    } catch {
+      return { status: 'invalid' };
+    }
+  })();
 }

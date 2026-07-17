@@ -152,10 +152,16 @@ export default function SettingsScreen() {
     patch({ leadFields: leadFields.filter((f) => f.id !== id) });
   }
 
-  function handleExportTheme() {
-    const result = exportThemeFile(config);
-    if (result === 'ok') notify('Tema', 'Arquivo roleta-tema.json baixado.');
-    else notify('Tema', 'Exportação disponível nas versões web e desktop.');
+  async function handleExportTheme() {
+    try {
+      const result = await exportThemeFile(config);
+      if (result === 'downloaded') notify('Tema', 'Arquivo roleta-tema.json baixado.');
+      else if (result === 'unsupported')
+        notify('Tema', 'Compartilhamento indisponível neste dispositivo.');
+      // 'shared': a folha nativa já foi exibida — sem aviso por cima.
+    } catch {
+      notify('Tema', 'Erro ao exportar o tema.');
+    }
   }
 
   async function handleImportTheme() {
@@ -166,7 +172,7 @@ export default function SettingsScreen() {
     } else if (result.status === 'invalid') {
       notify('Tema', 'Arquivo inválido: use um JSON exportado pela própria roleta.');
     } else if (result.status === 'unsupported') {
-      notify('Tema', 'Importação disponível nas versões web e desktop.');
+      notify('Tema', 'Importação indisponível neste dispositivo.');
     }
   }
 
