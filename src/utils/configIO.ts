@@ -46,6 +46,9 @@ function sanitizeSegment(raw: unknown, index: number): Segment | null {
     color,
   };
   if (typeof s.image === 'string') seg.image = s.image;
+  if (typeof s.weight === 'number' && Number.isFinite(s.weight) && s.weight >= 1) {
+    seg.weight = Math.min(10, Math.round(s.weight));
+  }
   return seg;
 }
 

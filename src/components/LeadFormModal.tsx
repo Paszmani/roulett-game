@@ -66,9 +66,11 @@ export function LeadFormModal({ visible, fields, prizeLabel, palette, fontFamily
     }
     setError('');
 
+    // Chaves = RÓTULOS configurados (viram os cabeçalhos do CSV, na ordem dos
+    // campos). Dois campos com o mesmo rótulo caem na mesma coluna.
     const leadFields: Record<string, string> = {};
-    for (const field of activeFields) leadFields[field.id] = (values[field.id] ?? '').trim();
-    leadFields.premio = prizeLabel;
+    for (const field of activeFields) leadFields[field.label.trim()] = (values[field.id] ?? '').trim();
+    leadFields['Prêmio'] = prizeLabel;
 
     const lead: Lead = {
       fields: leadFields,

@@ -9,6 +9,7 @@ directories:
 files:
   - main.cjs
   - preload.cjs
+  - csv.cjs
   - package.json
 extraResources:
   - from: web

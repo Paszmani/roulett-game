@@ -34,6 +34,11 @@ export interface Segment {
   color: string;
   /** Imagem opcional (data URI) exibida dentro da fatia. */
   image?: string;
+  /**
+   * Peso do setor (chance relativa E tamanho do arco). Ausente = 1.
+   * Peso 2 tem o dobro da chance (e do arco) de um peso 1.
+   */
+  weight?: number;
 }
 
 /** Configuração completa e persistível da roleta. */
@@ -57,6 +62,8 @@ export interface RouletteConfig {
   winAnimation: WinAnimationType;
   /** Orientação dos rótulos: vertical (radial) quando true. */
   verticalText: boolean;
+  /** Escala global do texto (título, rótulos e resultado). Ausente = 1. */
+  textScale?: number;
   /** Aparência do ponteiro. */
   pointerType: PointerType;
   /** Emoji do ponteiro (quando pointerType === 'emoji'). */

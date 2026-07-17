@@ -27,6 +27,7 @@ export default function HomeScreen() {
 
   const fontFamily = FONT_FAMILIES[config.fontFamily];
   const winner = winnerIndex != null ? config.segments[winnerIndex] : null;
+  const textScale = config.textScale ?? 1;
 
   // Altura responsiva da logo (limitada para não competir com a roleta).
   const logoHeight = config.logo ? Math.min(Math.max(height * 0.1, 52), 104) : 0;
@@ -62,7 +63,10 @@ export default function HomeScreen() {
         <View style={styles.topBar}>
           {/* Espaçador invisível (mesma largura do botão) para centralizar o título */}
           <View style={styles.iconSpacer} />
-          <Text style={[styles.title, { color: palette.text, fontFamily }]} numberOfLines={1}>
+          <Text
+            style={[styles.title, { color: palette.text, fontFamily, fontSize: 26 * textScale }]}
+            numberOfLines={1}
+          >
             {config.title}
           </Text>
           <Pressable
@@ -95,6 +99,7 @@ export default function HomeScreen() {
             backgroundColor={backgroundColor}
             isSpinning={isSpinning}
             verticalText={config.verticalText}
+            textScale={textScale}
             pointerType={config.pointerType}
             pointerEmoji={config.pointerEmoji}
             pointerImage={config.pointerImage}
@@ -129,11 +134,18 @@ export default function HomeScreen() {
             <WinAnimation key={celebrateId} type={config.winAnimation} active />
           </View>
 
-          {/* Card do resultado, centralizado */}
+          {/* Card do resultado, centralizado (imagem da fatia + nome) */}
           {winner ? (
             <View style={[styles.resultCard, { backgroundColor: winner.color, borderRadius: palette.radius.card }]}>
+              {winner.image ? (
+                <Image
+                  source={{ uri: winner.image }}
+                  style={[styles.resultImage, { borderRadius: palette.radius.control }]}
+                  resizeMode="contain"
+                />
+              ) : null}
               <Text
-                style={[styles.resultLabel, { color: readableTextColor(winner.color), fontFamily }]}
+                style={[styles.resultLabel, { color: readableTextColor(winner.color), fontFamily, fontSize: 32 * textScale }]}
                 numberOfLines={3}
               >
                 {winner.label || '—'}
@@ -177,7 +189,8 @@ const styles = StyleSheet.create({
     padding: 24,
     backgroundColor: 'rgba(0,0,0,0.45)',
   },
-  resultCard: { paddingHorizontal: 28, paddingVertical: 22, maxWidth: '90%' },
+  resultCard: { paddingHorizontal: 28, paddingVertical: 22, maxWidth: '90%', alignItems: 'center', gap: 14 },
+  resultImage: { width: 160, height: 160, maxWidth: '70%' },
   resultLabel: { fontSize: 32, fontWeight: '700', textAlign: 'center' },
   resultHint: { position: 'absolute', bottom: 56, fontSize: 14, opacity: 0.85 },
 });

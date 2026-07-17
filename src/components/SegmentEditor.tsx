@@ -10,8 +10,11 @@ interface SegmentEditorProps {
   fontFamily: string;
   canRemove: boolean;
   busy: boolean;
+  /** Chance de vitória (%) calculada sobre o total de pesos. */
+  chancePercent: number;
   onChangeLabel: (label: string) => void;
   onChangeColor: (color: string) => void;
+  onChangeWeight: (delta: number) => void;
   onOpenPicker: () => void;
   onPickImage: () => void;
   onRemoveImage: () => void;
@@ -25,13 +28,16 @@ export function SegmentEditor({
   fontFamily,
   canRemove,
   busy,
+  chancePercent,
   onChangeLabel,
   onChangeColor,
+  onChangeWeight,
   onOpenPicker,
   onPickImage,
   onRemoveImage,
   onRemove,
 }: SegmentEditorProps) {
+  const weight = segment.weight ?? 1;
   return (
     <View style={[styles.row, { backgroundColor: palette.surface, borderColor: palette.border, borderRadius: palette.radius.card }]}>
       <View style={styles.header}>
@@ -74,6 +80,22 @@ export function SegmentEditor({
           />
         ))}
       </ScrollView>
+
+      {/* Peso (chance relativa e tamanho do arco) */}
+      <View style={styles.weightRow}>
+        <Text style={[styles.weightLabel, { color: palette.textMuted, fontFamily }]}>
+          Chance: {chancePercent}%
+        </Text>
+        <View style={[styles.weightStepper, { backgroundColor: palette.surfaceAlt, borderColor: palette.border, borderRadius: palette.radius.control }]}>
+          <Pressable onPress={() => onChangeWeight(-1)} disabled={weight <= 1} style={[styles.weightBtn, { opacity: weight <= 1 ? 0.3 : 1 }]} hitSlop={6}>
+            <Text style={[styles.weightBtnText, { color: palette.text }]}>−</Text>
+          </Pressable>
+          <Text style={[styles.weightValue, { color: palette.text, fontFamily }]}>{weight}×</Text>
+          <Pressable onPress={() => onChangeWeight(1)} style={styles.weightBtn} hitSlop={6}>
+            <Text style={[styles.weightBtnText, { color: palette.text }]}>+</Text>
+          </Pressable>
+        </View>
+      </View>
 
       {/* Imagem da fatia */}
       <View style={styles.imageRow}>
@@ -118,6 +140,12 @@ const styles = StyleSheet.create({
   removeText: { fontSize: 16 },
   palette: { flexDirection: 'row', gap: 8, paddingVertical: 2 },
   colorDot: { width: 28, height: 28, borderRadius: 14, borderColor: 'transparent' },
+  weightRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
+  weightLabel: { fontSize: 13 },
+  weightStepper: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, paddingHorizontal: 4 },
+  weightBtn: { width: 34, height: 30, alignItems: 'center', justifyContent: 'center' },
+  weightBtnText: { fontSize: 18 },
+  weightValue: { fontSize: 14, minWidth: 28, textAlign: 'center' },
   imageRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   thumb: { width: 40, height: 40, borderRadius: 10, backgroundColor: '#0F172A' },
   thumbEmpty: { alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderStyle: 'dashed' },

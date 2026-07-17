@@ -118,6 +118,25 @@ export default function SettingsScreen() {
     patch({ spinDurationMs: next });
   }
 
+  function adjustTextScale(delta: number) {
+    const current = config.textScale ?? 1;
+    const next = Math.min(
+      LIMITS.maxTextScale,
+      Math.max(LIMITS.minTextScale, Math.round((current + delta) * 10) / 10),
+    );
+    patch({ textScale: next });
+  }
+
+  function adjustWeight(id: string, delta: number) {
+    const seg = config.segments.find((s) => s.id === id);
+    if (!seg) return;
+    const next = Math.min(LIMITS.maxWeight, Math.max(LIMITS.minWeight, (seg.weight ?? 1) + delta));
+    updateSegment(id, { weight: next });
+  }
+
+  // Total de pesos p/ mostrar a chance (%) de cada setor no editor.
+  const totalWeight = config.segments.reduce((sum, s) => sum + Math.max(0.1, s.weight ?? 1), 0);
+
   // Campos do formulário de lead (lista vazia = padrão).
   const leadFields = config.leadFields?.length ? config.leadFields : DEFAULT_LEAD_FIELDS;
 
@@ -152,11 +171,17 @@ export default function SettingsScreen() {
   }
 
   async function handleExportLeads() {
-    const result = await exportLeads();
-    if (result === 'kiosk') notify('Leads', 'Pasta de leads aberta no Explorador.');
-    else if (result === 'downloaded') notify('Leads', 'CSV de leads baixado.');
-    else if (result === 'empty') notify('Leads', 'Nenhum lead registrado ainda.');
-    else notify('Leads', 'Exportação disponível nas versões web e desktop.');
+    try {
+      const result = await exportLeads();
+      if (result === 'kiosk') notify('Leads', 'Pasta de leads aberta no Explorador.');
+      else if (result === 'downloaded') notify('Leads', 'CSV de leads baixado.');
+      else if (result === 'empty') notify('Leads', 'Nenhum lead registrado ainda.');
+      else if (result === 'unsupported')
+        notify('Leads', 'Compartilhamento indisponível neste dispositivo.');
+      // 'shared': a folha nativa já foi exibida — sem alerta por cima.
+    } catch {
+      notify('Leads', 'Não foi possível exportar os leads.');
+    }
   }
 
   function handleClearLeads() {
@@ -422,6 +447,25 @@ export default function SettingsScreen() {
           </View>
         </Section>
 
+        {/* Tamanho do texto */}
+        <Section title="Tamanho do texto" palette={palette} fontFamily={fontFamily}>
+          <View style={[styles.stepper, { backgroundColor: palette.surface, borderColor: palette.border, borderRadius: palette.radius.control }]}>
+            <Pressable onPress={() => adjustTextScale(-LIMITS.textScaleStep)} style={styles.stepBtn}>
+              <Text style={[styles.stepBtnText, { color: palette.text }]}>−</Text>
+            </Pressable>
+            <Text style={[styles.stepValue, { color: palette.text, fontFamily }]}>
+              {Math.round((config.textScale ?? 1) * 100)}%
+            </Text>
+            <Pressable onPress={() => adjustTextScale(LIMITS.textScaleStep)} style={styles.stepBtn}>
+              <Text style={[styles.stepBtnText, { color: palette.text }]}>+</Text>
+            </Pressable>
+          </View>
+          <Text style={[styles.hint, { color: palette.textMuted, fontFamily }]}>
+            Vale para o título, os rótulos da roleta e o resultado. Os rótulos também se
+            ajustam sozinhos ao espaço de cada fatia.
+          </Text>
+        </Section>
+
         {/* Tamanho da roleta */}
         <Section title="Tamanho da roleta" palette={palette} fontFamily={fontFamily}>
           <View style={[styles.stepper, { backgroundColor: palette.surface, borderColor: palette.border, borderRadius: palette.radius.control }]}>
@@ -453,8 +497,10 @@ export default function SettingsScreen() {
                 fontFamily={fontFamily}
                 canRemove={config.segments.length > LIMITS.minSegments}
                 busy={pickingKey === `seg-${s.id}`}
+                chancePercent={Math.round((Math.max(0.1, s.weight ?? 1) / totalWeight) * 100)}
                 onChangeLabel={(label) => updateSegment(s.id, { label })}
                 onChangeColor={(color) => updateSegment(s.id, { color })}
+                onChangeWeight={(delta) => adjustWeight(s.id, delta)}
                 onOpenPicker={() => setPickerTarget({ kind: 'segment', id: s.id })}
                 onPickImage={() =>
                   handlePick(`seg-${s.id}`, { square: true, maxSize: 1080 }, (uri) =>

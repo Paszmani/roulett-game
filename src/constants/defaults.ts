@@ -32,6 +32,7 @@ export const DEFAULT_CONFIG: RouletteConfig = {
   cornerRadius: 14,
   winAnimation: 'confetti',
   verticalText: false,
+  textScale: 1,
   pointerType: 'shape',
   pointerEmoji: '🧯',
   leadCaptureEnabled: false,
@@ -52,4 +53,9 @@ export const LIMITS = {
   minCornerRadius: 0,
   maxCornerRadius: 28,
   cornerRadiusStep: 4,
+  minTextScale: 0.7,
+  maxTextScale: 1.6,
+  textScaleStep: 0.1,
+  minWeight: 1,
+  maxWeight: 10,
 };

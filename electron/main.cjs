@@ -6,9 +6,14 @@
  * gravação para unir colunas).
  *
  * O bundle web (Expo export) é servido por um servidor HTTP local em
- * 127.0.0.1 (porta efêmera): o export usa caminhos absolutos com o baseUrl do
+ * 127.0.0.1 numa PORTA FIXA: o export usa caminhos absolutos com o baseUrl do
  * GitHub Pages (`/roulett-game/...`), o que inviabiliza `loadFile`/file://.
  * O servidor remove esse prefixo ao resolver os arquivos.
+ *
+ * A porta é FIXA (não efêmera) de propósito: o AsyncStorage do app usa o
+ * localStorage, que é isolado por origin (host:porta). Com porta variável, cada
+ * abertura vira um origin novo e as personalizações "somem" — por isso a porta
+ * é constante, mantendo o mesmo origin e o mesmo localStorage entre execuções.
  *
  * Layout de pastas esperado (ao lado do .exe em produção):
  *   Roleta Personalizavel.exe
@@ -24,6 +29,9 @@ const fs = require('node:fs');
 /** Prefixo do deploy web (experiments.baseUrl do app.json). */
 const BASE_PATH = '/roulett-game';
 const GAME_ID = 'roleta';
+/** Porta FIXA do servidor local — origin estável p/ persistir o localStorage.
+ *  Distinta da do Jogo da Memória (39218) para não colidirem se ambos abrirem. */
+const PORT = 39217;
 const DEV_URL = process.env.KIOSK_DEV_URL;
 /** Modo de verificação: abre oculto, loga o carregamento e sai sozinho. */
 const SMOKE = !!process.env.KIOSK_SMOKE;
@@ -101,7 +109,7 @@ function resolveFile(reqPath) {
 }
 
 function startServer() {
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     const server = http.createServer((req, res) => {
       const pathname = new URL(req.url, 'http://127.0.0.1').pathname;
       const file = resolveFile(pathname);
@@ -118,27 +126,14 @@ function startServer() {
       });
       fs.createReadStream(file).pipe(res);
     });
-    server.listen(0, '127.0.0.1', () => resolve(server));
+    server.on('error', reject);
+    server.listen(PORT, '127.0.0.1', () => resolve(server));
   });
 }
 
-// --- CSV consolidado (união de colunas) ------------------------------------
+// --- CSV consolidado (ver electron/csv.cjs — formato comum aos três jogos) --
 
-function leadsToCsv(leads) {
-  const meta = ['timestamp', 'terminalId', 'themeId', 'score'];
-  const ids = [];
-  for (const l of leads) for (const k of Object.keys(l.fields || {})) if (!ids.includes(k)) ids.push(k);
-  const cell = (v) => (/[",\r\n]/.test(String(v)) ? `"${String(v).replace(/"/g, '""')}"` : String(v));
-  const header = [...meta, ...ids];
-  const rows = leads.map((l) => [
-    l.timestamp,
-    l.terminalId,
-    l.themeId,
-    String(l.score),
-    ...ids.map((id) => (l.fields && l.fields[id]) || ''),
-  ]);
-  return [header, ...rows].map((r) => r.map(cell).join(',')).join('\r\n');
-}
+const { leadsToCsv, CSV_BOM } = require('./csv.cjs');
 
 function regenerateCsv(dir) {
   const rawDir = path.join(dir, 'raw');
@@ -152,7 +147,7 @@ function regenerateCsv(dir) {
       }
     })
     .filter(Boolean);
-  fs.writeFileSync(path.join(dir, 'leads.csv'), leadsToCsv(leads), 'utf8');
+  fs.writeFileSync(path.join(dir, 'leads.csv'), CSV_BOM + leadsToCsv(leads), 'utf8');
 }
 
 // --- IPC -------------------------------------------------------------------
@@ -199,9 +194,21 @@ async function createWindow() {
     win.webContents.on('console-message', (_e, _level, message) => {
       console.log('[renderer]', message);
     });
-    win.webContents.on('did-finish-load', () => {
+    win.webContents.on('did-finish-load', async () => {
       console.log('[smoke] bundle web carregado OK');
-      setTimeout(() => app.exit(0), 3000);
+      // Prova a persistência: lê o sentinela (gravado numa execução anterior)
+      // e regrava. Duas execuções seguidas devem ver 'persistiu: "v1"'.
+      try {
+        const origin = await win.webContents.executeJavaScript('location.origin');
+        const before = await win.webContents.executeJavaScript(
+          "localStorage.getItem('__persist_check__')",
+        );
+        console.log(`[smoke] origin: ${origin} | persistiu: ${JSON.stringify(before)}`);
+        await win.webContents.executeJavaScript("localStorage.setItem('__persist_check__', 'v1')");
+      } catch (e) {
+        console.error('[smoke] erro no teste de persistência:', e && e.message);
+      }
+      setTimeout(() => app.exit(0), 1500);
     });
   }
   win.webContents.on('did-fail-load', (_e, code, desc, url) => {
@@ -212,9 +219,21 @@ async function createWindow() {
   if (DEV_URL) {
     win.loadURL(DEV_URL);
   } else {
-    const server = startedServer || (startedServer = await startServer());
-    const { port } = server.address();
-    win.loadURL(`http://127.0.0.1:${port}${BASE_PATH}/`);
+    let server;
+    try {
+      server = startedServer || (startedServer = await startServer());
+    } catch (e) {
+      console.error('[erro] servidor local:', e && e.message);
+      if (SMOKE) return app.exit(1);
+      const { dialog } = require('electron');
+      dialog.showErrorBox(
+        'Não foi possível iniciar',
+        `A porta ${PORT} está em uso. Feche outra instância do app e tente novamente.`,
+      );
+      app.quit();
+      return win;
+    }
+    win.loadURL(`http://127.0.0.1:${PORT}${BASE_PATH}/`);
   }
 
   return win;
@@ -222,14 +241,28 @@ async function createWindow() {
 
 let startedServer = null;
 
-app.whenReady().then(() => {
-  registerIpc();
-  createWindow();
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow();
-  });
-});
-
-app.on('window-all-closed', () => {
+// Instância única: a porta fixa não pode ser disputada por duas cópias abertas.
+// (No smoke test as execuções são sequenciais, então o lock é liberado a tempo.)
+if (!app.requestSingleInstanceLock()) {
   app.quit();
-});
+} else {
+  app.on('second-instance', () => {
+    const [win] = BrowserWindow.getAllWindows();
+    if (win) {
+      if (win.isMinimized()) win.restore();
+      win.focus();
+    }
+  });
+
+  app.whenReady().then(() => {
+    registerIpc();
+    createWindow();
+    app.on('activate', () => {
+      if (BrowserWindow.getAllWindows().length === 0) createWindow();
+    });
+  });
+
+  app.on('window-all-closed', () => {
+    app.quit();
+  });
+}

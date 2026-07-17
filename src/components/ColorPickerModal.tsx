@@ -1,8 +1,10 @@
 import { useEffect, useId, useState } from 'react';
 import {
   GestureResponderEvent,
+  KeyboardAvoidingView,
   LayoutChangeEvent,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -141,6 +143,12 @@ export function ColorPickerModal({
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      {/* No Android o teclado cobria o card do picker; o KAV encolhe/desloca
+          o conteúdo do modal quando o campo hex foca. */}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.kavFill}
+      >
       <Pressable style={styles.backdrop} onPress={onClose}>
         <Pressable
           style={[styles.card, { backgroundColor: palette.surface, borderColor: palette.border, borderRadius: palette.radius.card }]}
@@ -208,11 +216,13 @@ export function ColorPickerModal({
           </Pressable>
         </Pressable>
       </Pressable>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
+  kavFill: { flex: 1 },
   backdrop: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.55)',

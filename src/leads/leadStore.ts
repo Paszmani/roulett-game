@@ -10,6 +10,8 @@
 
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { File, Paths } from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
 
 export interface Lead {
   /** Respostas do formulário: id do campo -> valor. */
@@ -75,40 +77,76 @@ export function terminalId(): string {
   return p && p.length > 0 ? p : 'totem-01';
 }
 
-// --- CSV (união de colunas, mesmo formato do kiosk) -------------------------
+// --- CSV (união de colunas; formato comum aos três jogos) --------------------
+//
+// Desenho pensado para o Excel pt-BR: separador `;` (o padrão da localidade —
+// com vírgula tudo cai numa coluna só), BOM UTF-8 (acentuação correta),
+// data/hora locais em colunas separadas (dd/mm/aaaa + hh:mm:ss, prontas para
+// filtro/ordenação) e cabeçalhos em português. Linhas em ordem cronológica.
+// O MESMO formato é gerado pelo Electron (electron/main.cjs) para data/leads.
 
-const META_COLUMNS = ['timestamp', 'terminalId', 'themeId', 'score'] as const;
+const META_COLUMNS = ['data', 'hora', 'terminal', 'jogo', 'pontuacao'] as const;
+const CSV_SEP = ';';
 
-/** Escapa uma célula conforme RFC 4180 (aspas/vírgula/quebra de linha). */
+/** BOM (U+FEFF) para o Excel abrir UTF-8 com acentuação correta. */
+export const CSV_BOM = String.fromCharCode(0xfeff);
+
+/** Escapa uma célula conforme RFC 4180 (aspas/separador/quebra de linha). */
 function csvCell(value: string): string {
-  return /[",\r\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
+  return /[";\r\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
+}
+
+const pad2 = (n: number) => String(n).padStart(2, '0');
+
+/** ISO 8601 -> [dd/mm/aaaa, hh:mm:ss] no fuso local (vazio se inválido). */
+function localDateTime(iso: string): [string, string] {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return [iso, ''];
+  return [
+    `${pad2(d.getDate())}/${pad2(d.getMonth() + 1)}/${d.getFullYear()}`,
+    `${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`,
+  ];
 }
 
 export function leadsToCsv(leads: Lead[]): string {
+  const sorted = [...leads].sort((a, b) => a.timestamp.localeCompare(b.timestamp));
+
   const fieldIds: string[] = [];
-  for (const lead of leads) {
+  for (const lead of sorted) {
     for (const id of Object.keys(lead.fields)) {
       if (!fieldIds.includes(id)) fieldIds.push(id);
     }
   }
 
   const header = [...META_COLUMNS, ...fieldIds];
-  const rows = leads.map((lead) => [
-    lead.timestamp,
-    lead.terminalId,
-    lead.themeId,
-    String(lead.score),
-    ...fieldIds.map((id) => lead.fields[id] ?? ''),
-  ]);
+  const rows = sorted.map((lead) => {
+    const [data, hora] = localDateTime(lead.timestamp);
+    return [
+      data,
+      hora,
+      lead.terminalId,
+      lead.themeId,
+      String(lead.score),
+      ...fieldIds.map((id) => lead.fields[id] ?? ''),
+    ];
+  });
 
-  return [header, ...rows].map((row) => row.map(csvCell).join(',')).join('\r\n');
+  return [header, ...rows].map((row) => row.map(csvCell).join(CSV_SEP)).join('\r\n');
 }
 
-export type ExportResult = 'kiosk' | 'downloaded' | 'empty' | 'unsupported';
+function csvFileName(): string {
+  const d = new Date();
+  return `leads-roleta-${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}.csv`;
+}
+
+export type ExportResult = 'kiosk' | 'downloaded' | 'shared' | 'empty' | 'unsupported';
 
 /**
- * Exporta os leads: no Electron abre a pasta `data/leads` (o CSV consolidado
- * já mora lá); na web baixa um CSV com o que está no armazenamento local.
+ * Exporta os leads conforme a plataforma (mesmo produto do Kiosk Maze):
+ * - Electron: abre a pasta `data/leads` (o CSV consolidado já mora lá);
+ * - Android/iOS: grava o CSV no cache e abre a folha de compartilhamento
+ *   nativa (e-mail, Drive, WhatsApp...);
+ * - Web/PWA: baixa o CSV.
  */
 export async function exportLeads(): Promise<ExportResult> {
   const kiosk = getKiosk();
@@ -116,19 +154,36 @@ export async function exportLeads(): Promise<ExportResult> {
     await kiosk.revealLeads();
     return 'kiosk';
   }
+
   const leads = await getStoredLeads();
   if (leads.length === 0) return 'empty';
-  if (Platform.OS !== 'web' || typeof document === 'undefined') return 'unsupported';
-  // BOM (U+FEFF) para o Excel pt-BR abrir com acentuação correta.
-  const bom = String.fromCharCode(0xfeff);
-  const blob = new Blob([bom + leadsToCsv(leads)], { type: 'text/csv;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = 'leads.csv';
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
-  return 'downloaded';
+  const csv = CSV_BOM + leadsToCsv(leads);
+
+  if (Platform.OS === 'web') {
+    if (typeof document === 'undefined') return 'unsupported';
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = csvFileName();
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    return 'downloaded';
+  }
+
+  // Nativo: como no maze-game, o caminho é COMPARTILHAR o CSV direto do
+  // aparelho (e-mail/Drive/WhatsApp) — não há "abrir pasta" no Android.
+  if (!(await Sharing.isAvailableAsync())) return 'unsupported';
+  const file = new File(Paths.cache, csvFileName());
+  if (file.exists) file.delete();
+  file.create();
+  file.write(csv);
+  await Sharing.shareAsync(file.uri, {
+    mimeType: 'text/csv',
+    dialogTitle: 'Compartilhar leads (CSV)',
+    UTI: 'public.comma-separated-values-text',
+  });
+  return 'shared';
 }
