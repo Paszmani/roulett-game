@@ -15,21 +15,13 @@ import {
   POINTER_EMOJIS,
   SEGMENT_PALETTE,
   TEXT_COLOR_SWATCHES,
+  WIN_ANIMATION_OPTIONS,
 } from '@/constants/theme';
 import { createId, DEFAULT_LEAD_FIELDS, LIMITS } from '@/constants/defaults';
 import { pickImage, type PickImageOptions } from '@/utils/imagePicker';
 import { clearStoredLeads, exportLeads, getKiosk } from '@/leads/leadStore';
 import { exportThemeFile, importThemeFile } from '@/utils/configIO';
-import type { FontKey, LeadField, WinAnimationType } from '@/types';
-
-const WIN_ANIMATIONS: { key: WinAnimationType; label: string }[] = [
-  { key: 'confetti', label: 'Confete' },
-  { key: 'fireworks', label: 'Fogos' },
-  { key: 'stars', label: 'Estrelas' },
-  { key: 'coins', label: 'Moedas' },
-  { key: 'hearts', label: 'Corações' },
-  { key: 'fire', label: 'Fogo' },
-];
+import type { FontKey, LeadField, SegmentResultOverride } from '@/types';
 
 type PickerTarget =
   | { kind: 'segment'; id: string }
@@ -132,6 +124,17 @@ export default function SettingsScreen() {
     if (!seg) return;
     const next = Math.min(LIMITS.maxWeight, Math.max(LIMITS.minWeight, (seg.weight ?? 1) + delta));
     updateSegment(id, { weight: next });
+  }
+
+  /**
+   * Mescla um patch no `resultOverride` da fatia (tela de resultado
+   * personalizada), preservando os demais campos e garantindo `enabled`.
+   */
+  function updateResult(id: string, partial: Partial<SegmentResultOverride>) {
+    const seg = config.segments.find((s) => s.id === id);
+    if (!seg) return;
+    const current: SegmentResultOverride = seg.resultOverride ?? { enabled: false };
+    updateSegment(id, { resultOverride: { ...current, ...partial } });
   }
 
   // Total de pesos p/ mostrar a chance (%) de cada setor no editor.
@@ -275,7 +278,7 @@ export default function SettingsScreen() {
         {/* Animação de vitória */}
         <Section title="Animação de vitória" palette={palette} fontFamily={fontFamily}>
           <View style={styles.fontRow}>
-            {WIN_ANIMATIONS.map((opt) => {
+            {WIN_ANIMATION_OPTIONS.map((opt) => {
               const active = config.winAnimation === opt.key;
               return (
                 <Pressable
@@ -503,6 +506,8 @@ export default function SettingsScreen() {
                 fontFamily={fontFamily}
                 canRemove={config.segments.length > LIMITS.minSegments}
                 busy={pickingKey === `seg-${s.id}`}
+                resultBusy={pickingKey === `segres-${s.id}`}
+                defaultAnimation={config.winAnimation}
                 chancePercent={Math.round((Math.max(0.1, s.weight ?? 1) / totalWeight) * 100)}
                 onChangeLabel={(label) => updateSegment(s.id, { label })}
                 onChangeColor={(color) => updateSegment(s.id, { color })}
@@ -515,6 +520,15 @@ export default function SettingsScreen() {
                 }
                 onRemoveImage={() => updateSegment(s.id, { image: undefined })}
                 onRemove={() => removeSegment(s.id)}
+                onToggleResult={(enabled) => updateResult(s.id, { enabled })}
+                onChangeResultText={(text) => updateResult(s.id, { text })}
+                onPickResultImage={() =>
+                  handlePick(`segres-${s.id}`, { square: false, maxSize: 1080 }, (uri) =>
+                    updateResult(s.id, { image: uri }),
+                  )
+                }
+                onRemoveResultImage={() => updateResult(s.id, { image: undefined })}
+                onChangeResultAnimation={(animation) => updateResult(s.id, { animation })}
               />
             ))}
           </View>

@@ -1,4 +1,4 @@
-import type { FontKey, ThemeMode } from '@/types';
+import type { FontKey, ThemeMode, WinAnimationType } from '@/types';
 
 /** Cores cruas de um tema (sem os ajustes do usuário). */
 export interface ColorScheme {
@@ -116,3 +116,14 @@ export const FONT_FAMILIES: Record<FontKey, string> = {
 };
 
 export const FONT_OPTIONS: FontKey[] = ['Poppins', 'Inter', 'Nunito', 'Montserrat'];
+
+/** Animações de vitória disponíveis (chave + rótulo em pt-BR). Compartilhado
+ *  pela seção global e pelo seletor por fatia (tela de resultado). */
+export const WIN_ANIMATION_OPTIONS: { key: WinAnimationType; label: string }[] = [
+  { key: 'confetti', label: 'Confete' },
+  { key: 'fireworks', label: 'Fogos' },
+  { key: 'stars', label: 'Estrelas' },
+  { key: 'coins', label: 'Moedas' },
+  { key: 'hearts', label: 'Corações' },
+  { key: 'fire', label: 'Fogo' },
+];

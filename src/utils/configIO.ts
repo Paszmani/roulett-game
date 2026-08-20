@@ -14,9 +14,26 @@ import { Platform } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
-import type { RouletteConfig, Segment } from '@/types';
+import type { RouletteConfig, Segment, SegmentResultOverride, WinAnimationType } from '@/types';
 import { DEFAULT_CONFIG, createId } from '@/constants/defaults';
 import { SEGMENT_PALETTE } from '@/constants/theme';
+
+const WIN_ANIMATION_KEYS: WinAnimationType[] = [
+  'confetti', 'fireworks', 'stars', 'coins', 'hearts', 'fire',
+];
+
+/** Saneia o `resultOverride` (tela de resultado personalizada) de JSON externo. */
+function sanitizeResultOverride(raw: unknown): SegmentResultOverride | undefined {
+  if (!raw || typeof raw !== 'object') return undefined;
+  const r = raw as Record<string, unknown>;
+  const override: SegmentResultOverride = { enabled: r.enabled === true };
+  if (typeof r.text === 'string') override.text = r.text;
+  if (typeof r.image === 'string') override.image = r.image;
+  if (typeof r.animation === 'string' && WIN_ANIMATION_KEYS.includes(r.animation as WinAnimationType)) {
+    override.animation = r.animation as WinAnimationType;
+  }
+  return override;
+}
 
 export type ExportThemeResult = 'downloaded' | 'shared' | 'unsupported';
 export type ImportThemeResult =
@@ -80,6 +97,8 @@ function sanitizeSegment(raw: unknown, index: number): Segment | null {
   if (typeof s.weight === 'number' && Number.isFinite(s.weight) && s.weight >= 1) {
     seg.weight = Math.min(10, Math.round(s.weight));
   }
+  const resultOverride = sanitizeResultOverride(s.resultOverride);
+  if (resultOverride) seg.resultOverride = resultOverride;
   return seg;
 }
 

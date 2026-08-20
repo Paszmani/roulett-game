@@ -62,7 +62,14 @@ interface WheelProps {
 }
 
 /** Fração média da fonte ocupada por caractere (semibold, aproximação). */
-const CHAR_WIDTH = 0.58;
+// Largura media de um glifo em fracao do fontSize. Inclui a folga do
+// letterSpacing aplicado no texto (ver LETTER_SPACING) para o auto-fit reservar
+// o espaco certo e o texto nao estourar a fatia.
+const CHAR_WIDTH = 0.64;
+// Espacamento entre letras (fracao do fontSize). Sem isto, o Android renderiza
+// os rotulos com as letras coladas ("muito juntas"); um valor pequeno afasta os
+// glifos sem descaracterizar o texto.
+const LETTER_SPACING = 0.06;
 
 /**
  * Tamanho de fonte que faz o rótulo CABER no espaço da fatia (auto-fit):
@@ -245,6 +252,7 @@ export const Wheel = forwardRef<WheelHandle, WheelProps>(function Wheel(
                   strokeWidth={strokeW}
                   fontSize={ln.fontSize}
                   fontFamily={fontFamily}
+                  letterSpacing={ln.fontSize * LETTER_SPACING}
                   textAnchor="middle"
                   alignmentBaseline="middle"
                   transform={`rotate(${rot} ${ln.x} ${ln.y})`}

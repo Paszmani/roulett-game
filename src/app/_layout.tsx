@@ -3,6 +3,7 @@ import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
 import { ReducedMotionConfig, ReduceMotion } from 'react-native-reanimated';
 import {
   Poppins_400Regular,
@@ -18,7 +19,10 @@ import { RouletteProvider } from '@/contexts/RouletteContext';
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
 export default function RootLayout() {
-  const [loaded] = useFonts({
+  // O 2o valor (error) NAO pode ser ignorado: se uma fonte falhar ao carregar no
+  // APK release, `loaded` nunca vira true e o app trava na splash para sempre.
+  // Com o fallback abaixo, o jogo entra mesmo com falha (cai na fonte do sistema).
+  const [loaded, error] = useFonts({
     Poppins_400Regular,
     Poppins_600SemiBold,
     Poppins_700Bold,
@@ -31,24 +35,29 @@ export default function RootLayout() {
   });
 
   useEffect(() => {
-    if (loaded) SplashScreen.hideAsync().catch(() => {});
-  }, [loaded]);
+    if (loaded || error) SplashScreen.hideAsync().catch(() => {});
+  }, [loaded, error]);
 
-  if (!loaded) return null;
+  if (!loaded && !error) return null;
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      {/* O giro e as animações de vitória SÃO o produto: sem isto, o modo
-          "reduzir movimento" do sistema (Windows/Android/iOS) faz o Reanimated
-          pular as animações e a roleta cai direto no resultado. */}
-      <ReducedMotionConfig mode={ReduceMotion.Never} />
-      <RouletteProvider>
-        <StatusBar style="auto" />
-        <Stack screenOptions={{ headerShown: false, animation: 'fade' }}>
-          <Stack.Screen name="index" />
-          <Stack.Screen name="settings" options={{ presentation: 'modal' }} />
-        </Stack>
-      </RouletteProvider>
-    </GestureHandlerRootView>
+    // SafeAreaProvider e obrigatorio para o <SafeAreaView> das telas receber os
+    // insets reais. Sem ele, no Android edge-to-edge os insets ficavam 0 e a
+    // barra de status/navegacao cobria o conteudo (topo e base do app).
+    <SafeAreaProvider initialMetrics={initialWindowMetrics}>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        {/* O giro e as animações de vitória SÃO o produto: sem isto, o modo
+            "reduzir movimento" do sistema (Windows/Android/iOS) faz o Reanimated
+            pular as animações e a roleta cai direto no resultado. */}
+        <ReducedMotionConfig mode={ReduceMotion.Never} />
+        <RouletteProvider>
+          <StatusBar style="auto" />
+          <Stack screenOptions={{ headerShown: false, animation: 'fade' }}>
+            <Stack.Screen name="index" />
+            <Stack.Screen name="settings" options={{ presentation: 'modal' }} />
+          </Stack>
+        </RouletteProvider>
+      </GestureHandlerRootView>
+    </SafeAreaProvider>
   );
 }

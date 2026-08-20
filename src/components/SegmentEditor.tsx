@@ -1,7 +1,7 @@
-import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import type { Segment } from '@/types';
+import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import type { Segment, WinAnimationType } from '@/types';
 import type { Palette } from '@/constants/theme';
-import { SEGMENT_PALETTE } from '@/constants/theme';
+import { SEGMENT_PALETTE, WIN_ANIMATION_OPTIONS } from '@/constants/theme';
 
 interface SegmentEditorProps {
   segment: Segment;
@@ -10,6 +10,10 @@ interface SegmentEditorProps {
   fontFamily: string;
   canRemove: boolean;
   busy: boolean;
+  /** Ocupada carregando a imagem da tela de resultado desta fatia. */
+  resultBusy: boolean;
+  /** Animação global — rotula a opção "Padrão" do seletor por fatia. */
+  defaultAnimation: WinAnimationType;
   /** Chance de vitória (%) calculada sobre o total de pesos. */
   chancePercent: number;
   onChangeLabel: (label: string) => void;
@@ -19,6 +23,13 @@ interface SegmentEditorProps {
   onPickImage: () => void;
   onRemoveImage: () => void;
   onRemove: () => void;
+  /** Tela de resultado personalizada. */
+  onToggleResult: (enabled: boolean) => void;
+  onChangeResultText: (text: string) => void;
+  onPickResultImage: () => void;
+  onRemoveResultImage: () => void;
+  /** `undefined` = usar a animação global (padrão). */
+  onChangeResultAnimation: (animation: WinAnimationType | undefined) => void;
 }
 
 export function SegmentEditor({
@@ -28,6 +39,8 @@ export function SegmentEditor({
   fontFamily,
   canRemove,
   busy,
+  resultBusy,
+  defaultAnimation,
   chancePercent,
   onChangeLabel,
   onChangeColor,
@@ -36,8 +49,16 @@ export function SegmentEditor({
   onPickImage,
   onRemoveImage,
   onRemove,
+  onToggleResult,
+  onChangeResultText,
+  onPickResultImage,
+  onRemoveResultImage,
+  onChangeResultAnimation,
 }: SegmentEditorProps) {
   const weight = segment.weight ?? 1;
+  const result = segment.resultOverride;
+  const resultEnabled = result?.enabled ?? false;
+  const resultAnimation = result?.animation; // undefined = padrão (global)
   return (
     <View style={[styles.row, { backgroundColor: palette.surface, borderColor: palette.border, borderRadius: palette.radius.card }]}>
       <View style={styles.header}>
@@ -127,6 +148,104 @@ export function SegmentEditor({
           </Pressable>
         ) : null}
       </View>
+
+      {/* Tela de resultado personalizada (opcional por fatia) */}
+      <View style={[styles.resultBlock, { borderTopColor: palette.border }]}>
+        <View style={styles.resultToggleRow}>
+          <Text style={[styles.resultToggleLabel, { color: palette.text, fontFamily }]}>
+            Tela de resultado personalizada
+          </Text>
+          <Switch value={resultEnabled} onValueChange={onToggleResult} />
+        </View>
+
+        {resultEnabled ? (
+          <View style={styles.resultBody}>
+            {/* Texto alternativo (centralizado, multilinha) */}
+            <Text style={[styles.miniLabel, { color: palette.textMuted, fontFamily }]}>
+              Texto (vazio = nome da fatia)
+            </Text>
+            <TextInput
+              value={result?.text ?? ''}
+              onChangeText={onChangeResultText}
+              placeholder={segment.label || `Opção ${index + 1}`}
+              placeholderTextColor={palette.textMuted}
+              style={[
+                styles.resultTextInput,
+                { color: palette.text, backgroundColor: palette.surfaceAlt, borderColor: palette.border, borderRadius: palette.radius.control, fontFamily },
+              ]}
+              multiline
+              numberOfLines={3}
+              textAlignVertical="top"
+              maxLength={140}
+            />
+
+            {/* Imagem da tela de resultado (abaixo do texto) */}
+            <Text style={[styles.miniLabel, { color: palette.textMuted, fontFamily }]}>
+              Imagem do resultado (abaixo do texto)
+            </Text>
+            <View style={styles.imageRow}>
+              {result?.image ? (
+                <Image source={{ uri: result.image }} style={styles.thumb} resizeMode="cover" />
+              ) : (
+                <View style={[styles.thumb, styles.thumbEmpty, { borderColor: palette.border }]}>
+                  <Text style={{ color: palette.textMuted, fontSize: 18 }}>🖼️</Text>
+                </View>
+              )}
+              <Pressable
+                onPress={onPickResultImage}
+                disabled={resultBusy}
+                style={[styles.imageBtn, { backgroundColor: palette.surfaceAlt, borderColor: palette.border, borderRadius: palette.radius.control }]}
+              >
+                {resultBusy ? (
+                  <ActivityIndicator size="small" color={palette.text} />
+                ) : (
+                  <Text style={[styles.imageBtnText, { color: palette.text, fontFamily }]}>
+                    {result?.image ? 'Trocar imagem' : 'Adicionar imagem'}
+                  </Text>
+                )}
+              </Pressable>
+              {result?.image ? (
+                <Pressable onPress={onRemoveResultImage} disabled={resultBusy} style={styles.imageRemove} hitSlop={6}>
+                  <Text style={[styles.imageRemoveText, { color: palette.textMuted }]}>Remover</Text>
+                </Pressable>
+              ) : null}
+            </View>
+
+            {/* Seletor de animação (Padrão = animação global) */}
+            <Text style={[styles.miniLabel, { color: palette.textMuted, fontFamily }]}>Animação desta fatia</Text>
+            <View style={styles.animRow}>
+              <Pressable
+                onPress={() => onChangeResultAnimation(undefined)}
+                style={[
+                  styles.animChip,
+                  { backgroundColor: resultAnimation === undefined ? palette.primary : palette.surfaceAlt, borderColor: palette.border, borderRadius: palette.radius.control },
+                ]}
+              >
+                <Text style={{ color: resultAnimation === undefined ? palette.primaryText : palette.text, fontFamily, fontSize: 14 }}>
+                  Padrão ({WIN_ANIMATION_OPTIONS.find((o) => o.key === defaultAnimation)?.label ?? defaultAnimation})
+                </Text>
+              </Pressable>
+              {WIN_ANIMATION_OPTIONS.map((opt) => {
+                const active = resultAnimation === opt.key;
+                return (
+                  <Pressable
+                    key={opt.key}
+                    onPress={() => onChangeResultAnimation(opt.key)}
+                    style={[
+                      styles.animChip,
+                      { backgroundColor: active ? palette.primary : palette.surfaceAlt, borderColor: palette.border, borderRadius: palette.radius.control },
+                    ]}
+                  >
+                    <Text style={{ color: active ? palette.primaryText : palette.text, fontFamily, fontSize: 14 }}>
+                      {opt.label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
+        ) : null}
+      </View>
     </View>
   );
 }
@@ -153,4 +272,13 @@ const styles = StyleSheet.create({
   imageBtnText: { fontSize: 14 },
   imageRemove: { paddingHorizontal: 6, paddingVertical: 6 },
   imageRemoveText: { fontSize: 13, textDecorationLine: 'underline' },
+  // Bloco da tela de resultado personalizada
+  resultBlock: { borderTopWidth: 1, paddingTop: 12, gap: 8 },
+  resultToggleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
+  resultToggleLabel: { fontSize: 14, flex: 1 },
+  resultBody: { gap: 8, marginTop: 2 },
+  miniLabel: { fontSize: 12, letterSpacing: 0.5 },
+  resultTextInput: { minHeight: 64, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 10, fontSize: 15, textAlign: 'center' },
+  animRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  animChip: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, borderWidth: 1 },
 });

@@ -21,7 +21,7 @@
  *   data/leads/        -> SAÍDA: leads.csv + raw/<...>.json
  */
 
-const { app, BrowserWindow, ipcMain, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, shell, Menu } = require('electron');
 const http = require('node:http');
 const path = require('node:path');
 const fs = require('node:fs');
@@ -180,6 +180,7 @@ async function createWindow() {
   const win = new BrowserWindow({
     width: 900,
     height: 1000,
+    kiosk: !SMOKE,
     backgroundColor: '#000000',
     show: !SMOKE,
     webPreferences: {
@@ -255,6 +256,7 @@ if (!app.requestSingleInstanceLock()) {
   });
 
   app.whenReady().then(() => {
+    Menu.setApplicationMenu(null); // remove a barra de menu (File/Edit/View...) do topo
     registerIpc();
     createWindow();
     app.on('activate', () => {

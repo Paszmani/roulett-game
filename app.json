@@ -17,10 +17,7 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#FFFFFF"
       },
-      "edgeToEdgeEnabled": true,
-      "permissions": [
-        "android.permission.RECORD_AUDIO"
-      ]
+      "edgeToEdgeEnabled": true
     },
     "web": {
       "bundler": "metro",
@@ -52,8 +49,7 @@
       ]
     ],
     "experiments": {
-      "typedRoutes": true,
-      "baseUrl": "/roulett-game"
+      "typedRoutes": true
     },
     "extra": {
       "router": {},

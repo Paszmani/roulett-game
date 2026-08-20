@@ -26,6 +26,21 @@ export interface LeadField {
   options?: string[];
 }
 
+/**
+ * Personalização opcional da tela de resultado de uma fatia. Cada campo cai no
+ * padrão quando ausente; a seção só é aplicada quando `enabled` é true.
+ */
+export interface SegmentResultOverride {
+  /** Liga a tela personalizada. Quando false, o resultado usa o padrão global. */
+  enabled: boolean;
+  /** Texto alternativo (aceita quebras de linha). Vazio = usa o `label` da fatia. */
+  text?: string;
+  /** Imagem própria da tela de resultado (data URI), exibida abaixo do texto. */
+  image?: string;
+  /** Animação específica desta fatia. Ausente = usa `config.winAnimation`. */
+  animation?: WinAnimationType;
+}
+
 /** Um setor (fatia) da roleta. */
 export interface Segment {
   id: string;
@@ -39,6 +54,8 @@ export interface Segment {
    * Peso 2 tem o dobro da chance (e do arco) de um peso 1.
    */
   weight?: number;
+  /** Tela de resultado personalizada (opcional). Ausente = resultado padrão. */
+  resultOverride?: SegmentResultOverride;
 }
 
 /** Configuração completa e persistível da roleta. */

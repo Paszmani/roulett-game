@@ -29,6 +29,17 @@ export default function HomeScreen() {
   const winner = winnerIndex != null ? config.segments[winnerIndex] : null;
   const textScale = config.textScale ?? 1;
 
+  // Tela de resultado personalizada da fatia vencedora (quando habilitada).
+  // Cada campo cai no padrão: texto vazio → nome; sem imagem → imagem da fatia;
+  // sem animação → animação global.
+  const resultOverride = winner?.resultOverride?.enabled ? winner.resultOverride : null;
+  const resultText = resultOverride?.text?.trim() ? resultOverride.text : winner?.label || '—';
+  const resultImage = resultOverride?.image ?? winner?.image;
+  const resultAnimation = resultOverride?.animation ?? config.winAnimation;
+  // Imagem do resultado dimensionada à tela (limitada para caber no card).
+  const resultImgW = Math.min(width * 0.7, 420);
+  const resultImgH = Math.min(height * 0.4, 420);
+
   // Altura responsiva da logo (limitada para não competir com a roleta).
   const logoHeight = config.logo ? Math.min(Math.max(height * 0.1, 52), 104) : 0;
 
@@ -131,25 +142,45 @@ export default function HomeScreen() {
         >
           {/* Animação de vitória atrás (não captura o toque) */}
           <View style={StyleSheet.absoluteFill} pointerEvents="none">
-            <WinAnimation key={celebrateId} type={config.winAnimation} active />
+            <WinAnimation key={celebrateId} type={resultAnimation} active />
           </View>
 
-          {/* Card do resultado, centralizado (imagem da fatia + nome) */}
+          {/* Card do resultado, centralizado. Personalizado: texto no topo e
+              imagem abaixo. Padrão: imagem da fatia acima do nome. */}
           {winner ? (
             <View style={[styles.resultCard, { backgroundColor: winner.color, borderRadius: palette.radius.card }]}>
-              {winner.image ? (
-                <Image
-                  source={{ uri: winner.image }}
-                  style={[styles.resultImage, { borderRadius: palette.radius.control }]}
-                  resizeMode="contain"
-                />
-              ) : null}
-              <Text
-                style={[styles.resultLabel, { color: readableTextColor(winner.color), fontFamily, fontSize: 32 * textScale }]}
-                numberOfLines={3}
-              >
-                {winner.label || '—'}
-              </Text>
+              {resultOverride ? (
+                <>
+                  <Text
+                    style={[styles.resultLabel, { color: readableTextColor(winner.color), fontFamily, fontSize: 32 * textScale }]}
+                  >
+                    {resultText}
+                  </Text>
+                  {resultImage ? (
+                    <Image
+                      source={{ uri: resultImage }}
+                      style={[styles.resultImage, { width: resultImgW, height: resultImgH, borderRadius: palette.radius.control }]}
+                      resizeMode="contain"
+                    />
+                  ) : null}
+                </>
+              ) : (
+                <>
+                  {winner.image ? (
+                    <Image
+                      source={{ uri: winner.image }}
+                      style={[styles.resultImage, { borderRadius: palette.radius.control }]}
+                      resizeMode="contain"
+                    />
+                  ) : null}
+                  <Text
+                    style={[styles.resultLabel, { color: readableTextColor(winner.color), fontFamily, fontSize: 32 * textScale }]}
+                    numberOfLines={3}
+                  >
+                    {winner.label || '—'}
+                  </Text>
+                </>
+              )}
             </View>
           ) : null}
 

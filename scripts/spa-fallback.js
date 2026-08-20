@@ -20,13 +20,10 @@ if (!fs.existsSync(indexPath)) {
   process.exit(1);
 }
 
-// baseUrl do app.json (ex.: "/roulett-game"); vazio em deploy na raiz.
-let base = '';
-try {
-  base = (require('../app.json').expo?.experiments?.baseUrl || '').replace(/\/$/, '');
-} catch {
-  base = '';
-}
+// baseUrl da env EXPO_BASE_URL (definida pelo scripts/build-web.js, que roda
+// este arquivo na mesma cadeia); vazio em deploy na raiz. Antes era lido do
+// app.json, mas o baseUrl saiu de lá para não vazar no build nativo.
+const base = (process.env.EXPO_BASE_URL || '').replace(/\/$/, '');
 
 let html = fs.readFileSync(indexPath, 'utf8');
 

@@ -31,14 +31,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Export web (PWA estático)
-        run: npx expo export -p web
-
-      - name: SPA fallback (404.html + .nojekyll)
-        run: node ./scripts/spa-fallback.js
-
-      - name: Gerar Service Worker (Workbox)
-        run: npx workbox generateSW workbox-config.js
+      - name: Build web (export + baseUrl + PWA + Service Worker)
+        # Usa o mesmo script do build local: ele define EXPO_BASE_URL=/roulett-game
+        # para TODA a cadeia (export + spa-fallback + workbox). Rodar os passos
+        # soltos aqui exportava sem baseUrl e quebrava os caminhos na subpasta.
+        run: npm run build:web
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
