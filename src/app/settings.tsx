@@ -14,6 +14,7 @@ import {
   FONT_OPTIONS,
   POINTER_EMOJIS,
   SEGMENT_PALETTE,
+  SPIN_EFFECT_OPTIONS,
   TEXT_COLOR_SWATCHES,
   WIN_ANIMATION_OPTIONS,
 } from '@/constants/theme';
@@ -296,6 +297,33 @@ export default function SettingsScreen() {
               );
             })}
           </View>
+        </Section>
+
+        {/* Efeito de giro (fundo + roleta + parada) */}
+        <Section title="Efeito de giro" palette={palette} fontFamily={fontFamily}>
+          <View style={styles.fontRow}>
+            {SPIN_EFFECT_OPTIONS.map((opt) => {
+              const active = (config.spinEffect ?? 'none') === opt.key;
+              return (
+                <Pressable
+                  key={opt.key}
+                  onPress={() => patch({ spinEffect: opt.key })}
+                  style={[
+                    styles.fontChip,
+                    { backgroundColor: active ? palette.primary : palette.surface, borderColor: palette.border, borderRadius: palette.radius.control },
+                  ]}
+                >
+                  <Text style={{ color: active ? palette.primaryText : palette.text, fontFamily, fontSize: 15 }}>
+                    {opt.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+          <Text style={[styles.hint, { color: palette.textMuted, fontFamily }]}>
+            "Chamas": fogo no fundo e ao redor da roleta durante o giro; ao parar, extintores
+            apagam o fogo antes de revelar o resultado.
+          </Text>
         </Section>
 
         {/* Ponteiro (seta) */}

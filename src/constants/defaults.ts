@@ -31,6 +31,7 @@ export const DEFAULT_CONFIG: RouletteConfig = {
   theme: 'dark',
   cornerRadius: 14,
   winAnimation: 'confetti',
+  spinEffect: 'none',
   verticalText: false,
   textScale: 1,
   pointerType: 'shape',

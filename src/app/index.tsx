@@ -6,6 +6,9 @@ import * as Haptics from 'expo-haptics';
 import { useRoulette } from '@/contexts/RouletteContext';
 import { Wheel, type WheelHandle } from '@/components/Wheel';
 import { WinAnimation } from '@/components/WinAnimation';
+import { FireBackground } from '@/components/FireBackground';
+import { FireRing } from '@/components/FireRing';
+import { ExtinguishOverlay } from '@/components/ExtinguishOverlay';
 import { LeadFormModal } from '@/components/LeadFormModal';
 import { DEFAULT_LEAD_FIELDS } from '@/constants/defaults';
 import { FONT_FAMILIES } from '@/constants/theme';
@@ -22,8 +25,16 @@ export default function HomeScreen() {
   const [celebrateId, setCelebrateId] = useState(0);
   // Resultado central: aparece ao terminar o giro e some ao toque na tela.
   const [resultShown, setResultShown] = useState(false);
+  // Fase de extinção do efeito "Chamas": ocorre ENTRE o fim do giro e o
+  // resultado (extintores apagam o fogo). Fora do modo fogo, nunca é usada.
+  const [extinguishing, setExtinguishing] = useState(false);
   // Formulário de lead: abre ao dispensar o resultado (se habilitado nas configs).
   const [leadVisible, setLeadVisible] = useState(false);
+
+  // Efeito de giro "Chamas": fogo no fundo + anel na roleta durante o giro e
+  // extinção antes do resultado. Opcional — ausente/'none' mantém o padrão.
+  const fireMode = config.spinEffect === 'fire';
+  const fireActive = fireMode && (isSpinning || extinguishing);
 
   const fontFamily = FONT_FAMILIES[config.fontFamily];
   const winner = winnerIndex != null ? config.segments[winnerIndex] : null;
@@ -68,6 +79,9 @@ export default function HomeScreen() {
       {config.backgroundImage ? (
         <Image source={{ uri: config.backgroundImage }} style={styles.bgImage} resizeMode="cover" />
       ) : null}
+
+      {/* Modo Chamas — fase 1a: fogo no plano de fundo (apaga junto na parada). */}
+      {fireActive ? <FireBackground extinguishing={extinguishing} /> : null}
 
       <SafeAreaView style={styles.safe}>
         <View style={styles.container}>
@@ -121,15 +135,40 @@ export default function HomeScreen() {
             onSpinEnd={(idx) => {
               setIsSpinning(false);
               setWinnerIndex(idx);
-              setCelebrateId((id) => id + 1);
-              setResultShown(true);
               triggerHaptic();
+              if (fireMode) {
+                // Modo Chamas: extingue o fogo primeiro; o resultado só aparece
+                // quando o ExtinguishOverlay chamar onDone (~900ms).
+                setExtinguishing(true);
+              } else {
+                setCelebrateId((id) => id + 1);
+                setResultShown(true);
+              }
             }}
           />
+
+          {/* Modo Chamas — fase 1b: anel de fogo lambendo a borda da roleta. */}
+          {fireActive ? (
+            <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.center]}>
+              <FireRing size={wheelSize} active extinguishing={extinguishing} />
+            </View>
+          ) : null}
         </View>
       </View>
 
       </SafeAreaView>
+
+      {/* Modo Chamas — fase 2: extintores apagam o fogo; ao fim, revela o resultado. */}
+      {fireMode && extinguishing ? (
+        <ExtinguishOverlay
+          active
+          onDone={() => {
+            setExtinguishing(false);
+            setCelebrateId((id) => id + 1);
+            setResultShown(true);
+          }}
+        />
+      ) : null}
 
       {/* Resultado central + celebração: cobre a tela e some ao toque. */}
       {resultShown ? (
@@ -212,6 +251,7 @@ const styles = StyleSheet.create({
   iconSpacer: { width: 44, height: 44 },
   iconText: { fontSize: 20 },
   wheelArea: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  center: { alignItems: 'center', justifyContent: 'center' },
   resultOverlay: {
     ...StyleSheet.absoluteFillObject,
     zIndex: 50,

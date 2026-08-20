@@ -14,7 +14,7 @@ import { Platform } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
-import type { RouletteConfig, Segment, SegmentResultOverride, WinAnimationType } from '@/types';
+import type { RouletteConfig, Segment, SegmentResultOverride, SpinEffect, WinAnimationType } from '@/types';
 import { DEFAULT_CONFIG, createId } from '@/constants/defaults';
 import { SEGMENT_PALETTE } from '@/constants/theme';
 
@@ -115,7 +115,9 @@ export function resolveImportedTheme(raw: unknown): RouletteConfig | null {
     .map((s, i) => sanitizeSegment(s, i))
     .filter((s): s is Segment => s !== null);
   if (segments.length < 2) return null;
-  return { ...DEFAULT_CONFIG, ...(obj as Partial<RouletteConfig>), segments };
+  // Efeito de giro: só aceita valores conhecidos (JSON externo não confiável).
+  const spinEffect: SpinEffect = obj.spinEffect === 'fire' ? 'fire' : 'none';
+  return { ...DEFAULT_CONFIG, ...(obj as Partial<RouletteConfig>), segments, spinEffect };
 }
 
 function parseTheme(text: string): RouletteConfig | null {

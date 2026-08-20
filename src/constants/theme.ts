@@ -1,4 +1,4 @@
-import type { FontKey, ThemeMode, WinAnimationType } from '@/types';
+import type { FontKey, SpinEffect, ThemeMode, WinAnimationType } from '@/types';
 
 /** Cores cruas de um tema (sem os ajustes do usuário). */
 export interface ColorScheme {
@@ -126,4 +126,11 @@ export const WIN_ANIMATION_OPTIONS: { key: WinAnimationType; label: string }[] =
   { key: 'coins', label: 'Moedas' },
   { key: 'hearts', label: 'Corações' },
   { key: 'fire', label: 'Fogo' },
+];
+
+/** Efeitos de giro disponíveis (chave + rótulo em pt-BR). Personalização
+ *  opcional: 'none' mantém o giro padrão; 'fire' liga o pacote "Chamas". */
+export const SPIN_EFFECT_OPTIONS: { key: SpinEffect; label: string }[] = [
+  { key: 'none', label: 'Nenhum' },
+  { key: 'fire', label: 'Chamas' },
 ];

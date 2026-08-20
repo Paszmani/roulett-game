@@ -12,6 +12,14 @@ export type PointerType = 'shape' | 'emoji' | 'image';
 /** Animação exibida ao vencer. */
 export type WinAnimationType = 'confetti' | 'fireworks' | 'stars' | 'coins' | 'hearts' | 'fire';
 
+/**
+ * Efeito visual durante o GIRO (distinto da celebração de vitória). Abrange as
+ * três fases: fundo, roleta e a parada. 'none' = comportamento padrão.
+ * 'fire' ("Chamas"): fogo no fundo + anel de fogo na roleta enquanto gira e,
+ * ao parar, extintores apagam as chamas antes de revelar o resultado.
+ */
+export type SpinEffect = 'none' | 'fire';
+
 /** Tipo de um campo do formulário de lead (mesmo modelo do Kiosk Maze). */
 export type LeadFieldType = 'text' | 'email' | 'tel' | 'select' | 'checkbox';
 
@@ -77,6 +85,8 @@ export interface RouletteConfig {
   cornerRadius: number;
   /** Animação ao vencer (padrão: confete). */
   winAnimation: WinAnimationType;
+  /** Efeito visual do giro (opcional, personalização). Ausente/'none' = padrão. */
+  spinEffect?: SpinEffect;
   /** Orientação dos rótulos: vertical (radial) quando true. */
   verticalText: boolean;
   /** Escala global do texto (título, rótulos e resultado). Ausente = 1. */

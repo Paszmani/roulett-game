@@ -6,6 +6,12 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "web"],
       "port": 8081
+    },
+    {
+      "name": "expo-web-8090",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["expo", "start", "--web", "--port", "8090"],
+      "port": 8090
     }
   ]
 }
